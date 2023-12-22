@@ -20,15 +20,19 @@ from botorch.utils.multi_objective.box_decompositions.dominated import (
     DominatedPartitioning,
 )
 
-from botorch.test_functions.multi_objective import DTLZ2
-
 import matplotlib.pyplot as plt
 
 import wandb
 
+from ProjectUtils.ePICUtils.editxml import editGeom
+from ProjectUtils.ePICUtils.wrapshell import piKsep
 
-def RunProblem(problem, x, kwargs):
-    return problem(torch.tensor(x, **kwargs).clamp(0.0, 1.0))
+def RunSimulation(momentum,radiator):    
+    # calculate objectives
+    npart = 50
+    # TODO: full p/eta scan
+    result = piKsep(momentum,npart,radiator)
+    return result
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization Closure Test-1")
@@ -69,8 +73,7 @@ if __name__ == "__main__":
     optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
-    d = config["n_design_params"]
-    M = config["n_objectives"]
+
     isGPU = torch.cuda.is_available()
     tkwargs = {
         "dtype": torch.double, 
@@ -88,64 +91,39 @@ if __name__ == "__main__":
             f.write("Optimization is running on GPU : " + torch.cuda.get_device_name() + "\n")
     print ("Running on GPU? ", isGPU)
     
-    problem = DTLZ2(dim=d, num_objectives=M, negate=True).to(**tkwargs)
-    
-    problem.ref_point = torch.tensor([-max(1.1, d/10.) for _ in range(M)], **tkwargs)
-    
-    print ("Problem Reference points : ", problem.ref_point)
-    
-    NPoints = 10000
-    pareto_fronts = problem.gen_pareto_front(NPoints//10)
-    hv_pareto = DominatedPartitioning(ref_point=problem.ref_point,
-                                      Y=pareto_fronts
-                                      ).compute_hypervolume().item()
-    print (f"Pareto Front Hypervolume: {hv_pareto}")
-    n_points = problem(torch.rand(NPoints*d, **tkwargs).reshape(NPoints, d))
-    hv_npoints = DominatedPartitioning(ref_point=problem.ref_point, 
-                                       Y=n_points
-                                       ).compute_hypervolume().item()
-    print (f"Random Points Hypervolume: {hv_npoints}")
-    
-    if (doMonitor):
-        MLTracker.summary["HV"] = hv_pareto
-        MLTracker.summary["HV_RandomPoints"] = hv_npoints
-        MLTracker.summary["ref_point"] = str(problem.ref_point.tolist())
-            
-    with open(os.path.join(outdir, optimInfo), "a") as f:
-        f.write("Problem Reference points : " + str(problem.ref_point) + "\n")
-        f.write("Problem Pareto Front Hypervolume : " + str(hv_pareto) + "\n")
-        f.write("Problem Random Points Hypervolume : " + str(hv_npoints) + "\n")
-    
-    @glob_fun
-    def ftot(x):
-        return RunProblem(problem, x, tkwargs)
-    def f1(xdic):
-        x = tuple(xdic[k] for k in xdic.keys())
-        return float(ftot(x)[0])
-    def f2(xdic):
-        x = tuple(xdic[k] for k in xdic.keys())
-        return float(ftot(x)[1])
-    def f3(xdic):
-        x = tuple(xdic[k] for k in xdic.keys())
-        return float(ftot(x)[2])
-    def f4(xdic):
-        x = tuple(xdic[k] for k in xdic.keys())
-        return float(ftot(x)[3])
-    
+    @glob_fun_2
+    def getpiKsep(momentum, radiator):
+        return RunSimulation(momentum,radiator)
+    def getpiKsep_low(xdict):
+        momentumVal = 14
+        radiator = 0
+        for key in xdict:
+            editGeom(key, xdict[key])
+        val = float(getpiKsep(momentumVal,radiator))
+        return val
+    def getpiKsep_high(xdict):
+        momentumVal = 40
+        radiator = 1
+        for key in xdict:
+            editGeom(key, xdict[key])
+        val = float(getpiKsep(momentumVal,radiator))
+        return val
+
+    params = config["parameters"]    
     search_space = SearchSpace(
         parameters=[
-            RangeParameter(name=f"x{i}", 
-                           lower=0, upper=1, 
+            RangeParameter(name=params[i]["name"], 
+                           lower=float(params[i]["lower"]), upper=float(params[i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
-            for i in range(d)],
+            for i in range(len(params))],
         )
-    param_names = [f"x{i}" for i in range(d)]
-    
-    names = ["a", "b", "c", "d"]
-    functions = [f1, f2, f3, f4]
+
+    # first test: nsigma pi-K separation at two momentum values
+    names = ["piKsep_14GeV", "piKsep_60GeV"]
+    functions = [getpiKsep_low, getpiKsep_high]
     metrics = []
 
-    for name, function in zip(names[:M], functions[:M]):
+    for name, function in zip(names, functions):
         metrics.append(
             GenericNoisyFunctionMetric(
                 name=name, f=function, noise_sd=0.0, lower_is_better=False
@@ -155,12 +133,15 @@ if __name__ == "__main__":
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metric, bound=val, relative=False)
-        for metric, val in zip(mo.metrics, problem.ref_point.to(tkwargs["device"]))
+        ObjectiveThreshold(metric=metrics[0], bound=2.5, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=2.5, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
-                                                           objective_thresholds=objective_thresholds,)
-    N_INIT = max(config["n_initial_points"], M * (d + 1))
+                                                           objective_thresholds=objective_thresholds)
+
+    # TODO: set real reference from current drich values
+    ref_point = torch.tensor([2.5,2.5])
+    N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
     N_BATCH = config["n_calls"]
     num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
@@ -198,9 +179,9 @@ if __name__ == "__main__":
         data = initialize_experiment(experiment,N_INIT)
         end_gen = time.time()
         exp_df = exp_to_df(experiment)
-        outcomes = torch.tensor(exp_df[names[:M]].values, **tkwargs)
+        outcomes = torch.tensor(exp_df[names].values, **tkwargs)
         start_hv = time.time()
-        partitioning = DominatedPartitioning(ref_point=problem.ref_point, Y=outcomes)
+        partitioning = DominatedPartitioning(ref_point=ref_point, Y=outcomes)
         try:
             hv = partitioning.compute_hypervolume().item()
         except:
@@ -217,7 +198,7 @@ if __name__ == "__main__":
         with open(os.path.join(outdir, "ax_state_init.json"), 'wb') as handle:
             list_dump = {"last_call": last_call,
                          "experiment": experiment,
-                         "HV_PARETO": hv_pareto,
+                         #"HV_PARETO": hv_pareto,
                          "hv_list": hv_list,
                          "data": data,
                          "outcomes": outcomes,
@@ -234,7 +215,7 @@ if __name__ == "__main__":
         tmp_list = pickle.load(open(jsonFile, "rb" ))
         last_call = tmp_list["last_call"]
         experiment = tmp_list["experiment"]
-        hv_pareto = tmp_list["HV_PARETO"]
+        #hv_pareto = tmp_list["HV_PARETO"]
         hv_list = tmp_list["hv_list"]
         hv = hv_list[-1]
         data = tmp_list["data"]
@@ -247,8 +228,8 @@ if __name__ == "__main__":
         
     tol = config["hv_tolerance"]
     max_calls = config["max_calls"]
-    converged = (hv_pareto - hv)/hv_pareto 
-    converged_list.append(converged)
+    #converged = (hv_pareto - hv)/hv_pareto 
+    #converged_list.append(converged)
     check_imp = True
     roll = 30
     roll2 = min(len(hv_list)-1, 2*roll)
@@ -271,13 +252,13 @@ if __name__ == "__main__":
     if (doMonitor and jsonFile):
         logMetrics = {f"Trail Exec (q = {BATCH_SIZE}) [s]" : time_trail[-1],
                       "HV": hv,
-                      "Increase in HV w.r.t true pareto": converged,
+                      #"Increase in HV w.r.t true pareto": converged,
                       "HV Calculation [s]": time_hv[-1],
                       "Total time [s]": time_tot[-1],
                       "iterations": last_call
                       }
         MLTracker.log(logMetrics)
-    while(converged > tol and last_call <= max_calls and check_imp):
+    while(last_call <= max_calls and check_imp):
         start_tot = time.time()
         start_mcmc = time.time()
         model = Models.FULLYBAYESIANMOO(
@@ -300,9 +281,9 @@ if __name__ == "__main__":
         end_trail = time.time()
         data = Data.from_multiple_data([data, trial.fetch_data()])
         exp_df = exp_to_df(experiment)
-        outcomes = torch.tensor(exp_df[names[:M]].values, **tkwargs)
+        outcomes = torch.tensor(exp_df[names].values, **tkwargs)
         start_hv = time.time()
-        partitioning = DominatedPartitioning(ref_point=problem.ref_point, Y=outcomes)
+        partitioning = DominatedPartitioning(ref_point=ref_point, Y=outcomes)
         try:
             hv = partitioning.compute_hypervolume().item()
         except:
@@ -312,7 +293,7 @@ if __name__ == "__main__":
         end_tot = time.time()
         
         last_call += 1
-        converged = (hv_pareto - hv)/hv_pareto
+        #converged = (hv_pareto - hv)/hv_pareto
         hv_list.append(hv)
         if (len(hv_list) > roll):
             tmp_tol = 1. if(hv_list[-roll] == 0.) else abs((hv_list[-1] - hv_list[-roll])/hv_list[-roll])
@@ -323,21 +304,21 @@ if __name__ == "__main__":
         time_gen.append(end_gen - start_gen)
         time_trail.append(end_trail - start_trail)
         time_hv.append(end_hv - start_hv)
-        converged_list.append(converged)
+        #converged_list.append(converged)
         roll2+=1
         
         
         with open(os.path.join(outdir, optimInfo), "a") as f:
             f.write("Optimization call: " + str(last_call) + "\n")
             f.write("Optimization HV: " + str(hv) + "\n")
-            f.write(f"Optimization Pareto HV - HV / Pareto HV: {converged:.4f} \n")
-            f.write("Optimization converged: " + str(converged < tol) + "\n")
+            #f.write(f"Optimization Pareto HV - HV / Pareto HV: {converged:.4f} \n")
+            #f.write("Optimization converged: " + str(converged < tol) + "\n")
         
         if last_call % save_every_n == 0:
             with open(os.path.join(outdir, f'optim_iteration_{last_call}.json'), 'wb') as handle:
                 list_dump = {"last_call": last_call,
                              "experiment": experiment,
-                             "HV_PARETO": hv_pareto,
+                             #"HV_PARETO": hv_pareto,
                              "hv_list": hv_list,
                              "data": data,
                              "outcomes": outcomes,
@@ -364,7 +345,7 @@ if __name__ == "__main__":
                             f"Gen Acq func (q = {BATCH_SIZE}) [s]": time_gen[-1],
                             f"Trail Exec (q = {BATCH_SIZE}) [s]" : time_trail[-1],
                             "HV": hv,
-                            "Increase in HV w.r.t true pareto": converged,
+                            #"Increase in HV w.r.t true pareto": converged,
                             "HV Calculation [s]": time_hv[-1],
                             "Total time [s]": time_tot[-1],
                             "iterations" : last_call
