@@ -27,15 +27,16 @@ import wandb
 from ProjectUtils.ePICUtils.editxml import editGeom
 from ProjectUtils.ePICUtils.wrapshell import piKsep
 
+
 def RunSimulation(momentum,radiator):    
     # calculate objectives
-    npart = 50
+    npart = 100
     # TODO: full p/eta scan
     result = piKsep(momentum,npart,radiator)
     return result
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description= "Optimization Closure Test-1")
+    parser = argparse.ArgumentParser(description= "Optimization, dRICH")
     parser.add_argument('-c', '--config', 
                         help='Optimization configuration file', 
                         type = str, required = True)
@@ -94,19 +95,26 @@ if __name__ == "__main__":
     @glob_fun_2
     def getpiKsep(momentum, radiator):
         return RunSimulation(momentum,radiator)
+
     def getpiKsep_low(xdict):
         momentumVal = 14
         radiator = 0
+        npart = 100        
         for key in xdict:
             editGeom(key, xdict[key])
-        val = float(getpiKsep(momentumVal,radiator))
+        #val = float(getpiKsep(momentumVal,radiator))
+        val = piKsep(momentumVal,npart,radiator)
         return val
     def getpiKsep_high(xdict):
         momentumVal = 40
         radiator = 1
+        npart = 100
         for key in xdict:
             editGeom(key, xdict[key])
-        val = float(getpiKsep(momentumVal,radiator))
+        #val = float(getpiKsep(momentumVal,radiator))
+        # for some reason, using getpiKsep only calculates pi-K  
+        # sep for the first set of params in a batch
+        val = piKsep(momentumVal,npart,radiator)
         return val
 
     params = config["parameters"]    
@@ -126,7 +134,7 @@ if __name__ == "__main__":
     for name, function in zip(names, functions):
         metrics.append(
             GenericNoisyFunctionMetric(
-                name=name, f=function, noise_sd=0.0, lower_is_better=False
+                name=name, f=function, noise_sd=0.1, lower_is_better=False
             )
         )
     mo = MultiObjective(
@@ -176,10 +184,12 @@ if __name__ == "__main__":
         start_tot = time.time()
         experiment = build_experiment(search_space,optimization_config)
         start_gen = time.time()
-        data = initialize_experiment(experiment,N_INIT)
+        
+        data = initialize_experiment(experiment,N_INIT)        
         end_gen = time.time()
         exp_df = exp_to_df(experiment)
         outcomes = torch.tensor(exp_df[names].values, **tkwargs)
+        
         start_hv = time.time()
         partitioning = DominatedPartitioning(ref_point=ref_point, Y=outcomes)
         try:
@@ -187,6 +197,7 @@ if __name__ == "__main__":
         except:
             hv = 0.
         end_hv = time.time()
+
         end_tot = time.time()
         time_tot.append(end_tot - start_tot)
         time_gen.append(end_gen - start_gen)
@@ -279,9 +290,11 @@ if __name__ == "__main__":
         trial = experiment.new_batch_trial(generator_run=generator_run)
         trial.run()
         end_trail = time.time()
+        
         data = Data.from_multiple_data([data, trial.fetch_data()])
         exp_df = exp_to_df(experiment)
         outcomes = torch.tensor(exp_df[names].values, **tkwargs)
+        
         start_hv = time.time()
         partitioning = DominatedPartitioning(ref_point=ref_point, Y=outcomes)
         try:
