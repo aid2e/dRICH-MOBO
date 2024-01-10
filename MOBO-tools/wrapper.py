@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import wandb
 
 from ProjectUtils.ePICUtils.editxml import editGeom
-from ProjectUtils.ePICUtils.wrapshell import piKsep
+from ProjectUtils.ePICUtils.wrapshell import piKsep, checkOverlap
 
 
 def RunSimulation(momentum,radiator):    
@@ -100,8 +100,16 @@ if __name__ == "__main__":
         momentumVal = 14
         radiator = 0
         npart = 100        
+
+        #edit geom, check overlaps
         for key in xdict:
             editGeom(key, xdict[key])
+        n_overlap = checkOverlap()
+        # TODO: -1 for failure in script, >0 for overlaps
+        # do these need different responses?
+        if n_overlap != 0:
+            return -1
+
         #val = float(getpiKsep(momentumVal,radiator))
         val = piKsep(momentumVal,npart,radiator)
         return val
@@ -109,9 +117,16 @@ if __name__ == "__main__":
         momentumVal = 40
         radiator = 1
         npart = 100
+
+        #edit geom, check overlaps
         for key in xdict:
             editGeom(key, xdict[key])
-        #val = float(getpiKsep(momentumVal,radiator))
+        n_overlap = checkOverlap()
+        # TODO: -1 for failure in script, >0 for overlaps
+        # do these need different responses?
+        if n_overlap != 0:
+            return -1
+
         # for some reason, using getpiKsep only calculates pi-K  
         # sep for the first set of params in a batch
         val = piKsep(momentumVal,npart,radiator)
