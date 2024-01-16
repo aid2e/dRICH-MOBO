@@ -11,7 +11,16 @@ using namespace std;
 
 void extractSPEres(const char* filename, const char* outname, int radiator){
 
-  TH1F* hSingleTheta = new TH1F("hSingleTheta", "", 300, 150, 250);
+  double thlow, thhigh;
+  if(radiator==0){
+    thlow = 150;
+    thhigh = 250;    
+  }
+  else{
+    thlow = 25;
+    thhigh = 50;
+  }
+  TH1F* hSingleTheta = new TH1F("hSingleTheta", "", 300, thlow, thhigh);
   TH1F* hnPhotons = new TH1F("hnPhotons", "", 60, -0.5, 60.5);  
   
   //cout << "opening " << filename << endl;
@@ -73,8 +82,11 @@ void extractSPEres(const char* filename, const char* outname, int radiator){
     }
     
   }
+  double mean = hSingleTheta->GetMean();
+  double rms = hSingleTheta->GetRMS();
   
   TF1 *f1 = new TF1("gaussianFit", "gaus");
+  f1->SetRange(mean-2*rms,mean+2*rms);
   hSingleTheta->Fit("gaussianFit");
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
