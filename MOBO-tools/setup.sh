@@ -22,3 +22,4 @@ fi
 export EIC_SHELL_HOME=$EIC_SHELL_DIR
 export EPIC_HOME=$EPIC_DIR
 export EPIC_MOBO_UTILS=$(pwd)/ProjectUtils/ePICUtils/
+export AIDE_HOME=$(pwd)
