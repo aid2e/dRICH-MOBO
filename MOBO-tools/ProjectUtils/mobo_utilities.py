@@ -4,6 +4,8 @@ from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df  #https://ax.dev/api/service.html#ax.service.utils.report_utils.exp_to_df
 from ax.runners.synthetic import SyntheticRunner
 
+#from ax.runners import Runner
+
 # Plotting imports and initialization
 #from ax.utils.notebook.plotting import render, init_notebook_plotting
 from ax.plot.contour import plot_contour
@@ -69,7 +71,7 @@ def glob_fun(loc_fun):
   @lru_cache(maxsize=None)
   def inner(xdic):
     x_sorted = [xdic[p_name] for p_name in xdic.keys()]
-    res = list(loc_fun(x_sorted))
+    res = loc_fun(x_sorted)
     return res
   return inner
 """
@@ -77,11 +79,20 @@ def glob_fun(loc_fun):
     @wraps(loc_fun)
     @lru_cache(maxsize=None)
     def inner(xsorted):
-      res = list(loc_fun(xsorted))
+      res = loc_fun(xsorted)
+      return res
+    return inner
+def glob_fun_2(loc_fun):
+    @wraps(loc_fun)
+    @lru_cache(maxsize=None)
+    def inner(xsorted,arg):
+      res = loc_fun(xsorted,arg)
       return res
     return inner
 
 #---------------------- BOTORCH FUNCTIONS ------------------------#
+#class simRunner(Runner):
+    
 
 def build_experiment(search_space,optimization_config):
     experiment = Experiment(
