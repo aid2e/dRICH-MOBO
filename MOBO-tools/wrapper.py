@@ -40,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config', 
                         help='Optimization configuration file', 
                         type = str, required = True)
+    parser.add_argument('-d', '--detparameters', 
+                        help='Detector parameter configuration file', 
+                        type = str, required = True)
     parser.add_argument('-j', '--json_file', 
                         help = "The json file to load and continue optimization", 
                         type = str, required=False)
@@ -55,6 +58,7 @@ if __name__ == "__main__":
     
     # READ SOME INFO 
     config = ReadJsonFile(args.config)
+    detconfig = ReadJsonFile(args.detparameters)
     jsonFile = args.json_file
     profiler = args.profile
     outdir = config["OUTPUT_DIR"]
@@ -132,13 +136,13 @@ if __name__ == "__main__":
         val = piKsep(momentumVal,npart,radiator)
         return val
 
-    params = config["parameters"]    
+    print(detconfig)
     search_space = SearchSpace(
         parameters=[
-            RangeParameter(name=params[i]["name"], 
-                           lower=float(params[i]["lower"]), upper=float(params[i]["upper"]), 
+            RangeParameter(name=i,
+                           lower=float(detconfig[i]["lower"]), upper=float(detconfig[i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
-            for i in range(len(params))],
+            for i in detconfig],
         )
 
     # first test: nsigma pi-K separation at two momentum values
