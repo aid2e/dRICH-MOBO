@@ -12,18 +12,20 @@ using namespace std;
 void extractSPEres(const char* filename, const char* outname, int radiator){
 
   double thlow, thhigh;
+  int nbins;
   if(radiator==0){
     thlow = 150;
-    thhigh = 250;    
+    thhigh = 220;
+    nbins = 200;
   }
   else{
-    thlow = 25;
-    thhigh = 50;
+    thlow = 20;
+    thhigh = 60;
+    nbins = 100;
   }
-  TH1F* hSingleTheta = new TH1F("hSingleTheta", "", 300, thlow, thhigh);
+  TH1F* hSingleTheta = new TH1F("hSingleTheta", "", nbins, thlow, thhigh);
   TH1F* hnPhotons = new TH1F("hnPhotons", "", 60, -0.5, 60.5);  
   
-  //cout << "opening " << filename << endl;
   podio::ROOTFrameReader reader;
   reader.openFile(filename);
   
@@ -85,9 +87,8 @@ void extractSPEres(const char* filename, const char* outname, int radiator){
   double mean = hSingleTheta->GetMean();
   double rms = hSingleTheta->GetRMS();
   
-  TF1 *f1 = new TF1("gaussianFit", "gaus");
-  f1->SetRange(mean-2*rms,mean+2*rms);
-  hSingleTheta->Fit("gaussianFit");
+  TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
+  hSingleTheta->Fit("gaussianFit","R");
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
   c->SaveAs("spetest.png");
