@@ -47,12 +47,29 @@ def editGeom(param, value, jobid):
     tree.write(xmlfile)
     return
 
+def editEPIC(xml, jobid):
+    drich_old = "${DETECTOR_PATH}/compact/pid/drich.xml"
+    drich_new = "${DETECTOR_PATH}/compact/pid/drich_{}.xml".format(jobid)
+    tree = ET.parse(xml)
+    root = tree.getroot()
+
+    for element in root.findall('.//include'):
+        if element.get('ref') == drich_old:
+            include_element.set('ref', new_ref)
+            tree.write(xml)
+            return
+    print("failed to update to new drich geo")
+    return
+    
+    
 def create_xml(parameters, jobid):
     #create new epic xml
     epic_xml = "{}/{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'])
-    epic_xml_job = "{}/{}_{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'],jobid)
+    epic_xml_job = "{}/{}_{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'],jobid) 
     shutil.copyfile(epic_xml, epic_xml_job)
-
+    #change drich.xml -> drich_{jobid}.xml
+    editEPIC(epic_xml_job, jobid)
+    
     #create and edit drich xml
     drich_xml = str(os.environ['EPIC_HOME']+"/compact/pid/drich.xml")
     drich_xml_job = str(os.environ['EPIC_HOME']+"/compact/pid/drich_{}.xml".format(jobid))
