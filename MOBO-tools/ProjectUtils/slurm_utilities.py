@@ -69,7 +69,7 @@ class SlurmQueueClient:
             return TrialStatus.FAILED
 
         ### HERE: run bash command to retrieve status, exit code
-        shellcommand = [str(os.environ["AIDE_HOME"])+"/ProjectUtils/"+"checkSlurmStatus.sh", job.slurmid]
+        shellcommand = [str(os.environ["AIDE_HOME"])+"/ProjectUtils/"+"checkSlurmStatus.sh", str(job.slurmid)]
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
         output = commandout.stdout.decode('utf-8')

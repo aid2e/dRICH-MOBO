@@ -48,14 +48,15 @@ def editGeom(param, value, jobid):
     return
 
 def editEPIC(xml, jobid):
-    drich_old = "${DETECTOR_PATH}/compact/pid/drich.xml"
-    drich_new = "${DETECTOR_PATH}/compact/pid/drich_{}.xml".format(jobid)
+    path = "${DETECTOR_PATH}/compact/pid/"
+    drich_old = "drich.xml"
+    drich_new = "drich_{}.xml".format(jobid)
     tree = ET.parse(xml)
     root = tree.getroot()
 
     for element in root.findall('.//include'):
-        if element.get('ref') == drich_old:
-            include_element.set('ref', new_ref)
+        if element.get('ref') == str(path+drich_old):
+            element.set('ref', str(path+drich_new))
             tree.write(xml)
             return
     print("failed to update to new drich geo")
