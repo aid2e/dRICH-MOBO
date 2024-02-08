@@ -30,7 +30,13 @@ import wandb
 
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
-
+from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
+from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
+from ax.models.torch.botorch_modular.surrogate import Surrogate
+from ax.models.torch.botorch_modular.model import BoTorchModel
+from botorch.acquisition.monte_carlo import (
+    qNoisyExpectedImprovement,
+)
 def RunSimulation(momentum,radiator):    
     # calculate objectives
     npart = 100
@@ -170,8 +176,29 @@ if __name__ == "__main__":
         
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-    gen_strategy = choose_generation_strategy(search_space = experiment.search_space, max_parallelism_cap=2)
-    
+    # Generate initial number of SOBOL points
+    initial_generation = GenerationStep(model = Models.SOBOL, num_trials = N_INIT, min_trials_observed = N_INIT, max_parallelism=5)
+    # The Surrogate here is SAASBO with qNEHVI acq. 
+    # TO DO: Need to play with the hyper parameters here
+    model = BoTorchModel(
+        surrogate = Surrogate(
+        botorch_model_class=SaasFullyBayesianSingleTaskGP,
+        mll_options={
+            "num_samples": 256,  # Increasing this may result in better model fits
+            "warmup_steps": 512,  # Increasing this may result in better model fits
+                    },
+                ),
+        botorch_acqf_class = qNoisyExpectedImprovement,
+        acquisition_options = {},
+        refit_on_update = True, 
+        refit_on_cv = False, 
+        warm_start_refit = True
+    )
+    subsequent_generation = GenerationStep(model = model, 
+                                           num_trials = BATCH_SIZE,
+                                           min_trials_observed = BATCH_SIZE
+                                           )
+    gen_strategy = GenerationStrategy(steps = [initial_generation, subsequent_generation])
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions())
