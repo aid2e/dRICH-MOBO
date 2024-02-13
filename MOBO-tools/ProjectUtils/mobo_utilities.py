@@ -102,6 +102,14 @@ def build_experiment(search_space,optimization_config):
         runner=SyntheticRunner(),
     )
     return experiment
+def build_experiment_slurm(search_space,optimization_config,runner):
+    experiment = Experiment(
+        name="pareto_experiment",
+        search_space=search_space,
+        optimization_config=optimization_config,
+        runner=runner
+    )
+    return experiment
 
 
 def initialize_experiment(experiment,N_INIT):
