@@ -30,9 +30,9 @@ class SlurmQueueClient:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=drich-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=vossenlab-gpu\n")
-            file.write("#SBATCH --mem=500M\n")
-            file.write("#SBATCH --time=1:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
+            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --mem=2G\n")
+            file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write("#SBATCH --output=drich-mobo_%j.out\n")
             file.write("#SBATCH --error=drich-mobo_%j.err\n")
             
