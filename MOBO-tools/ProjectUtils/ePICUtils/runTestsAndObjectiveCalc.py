@@ -1,5 +1,5 @@
 import numpy as np
-import os, sys
+import os, sys, subprocess
 
 #NEEDS TO:
 # 1. run overlap check
