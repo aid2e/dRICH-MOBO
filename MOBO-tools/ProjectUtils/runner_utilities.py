@@ -21,7 +21,7 @@ class SlurmJobRunner(Runner):  # Deploys trials to external system.
         for trial in trials:
             slurm_job_queue = get_slurm_queue_client()
             status = slurm_job_queue.get_job_status(
-                job_id=trial.run_metadata.get("job_id")
+                trial.run_metadata.get("job_id")
             )
             status_dict[status].add(trial.index)        
         return status_dict

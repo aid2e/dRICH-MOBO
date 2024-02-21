@@ -30,9 +30,9 @@ class SlurmQueueClient:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=drich-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=vossenlab-gpu\n")
-            file.write("#SBATCH --mem=500M\n")
-            file.write("#SBATCH --time=1:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
+            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --mem=2G\n")
+            file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write("#SBATCH --output=drich-mobo_%j.out\n")
             file.write("#SBATCH --error=drich-mobo_%j.err\n")
             
@@ -82,11 +82,11 @@ class SlurmQueueClient:
             print("Error in checking slurm status, assuming still running")
             return TrialStatus.RUNNING
 
-        if status == 0:
+        if status == "0":
             return TrialStatus.RUNNING
-        elif status == 1:
+        elif status == "1":
             return TrialStatus.COMPLETED
-        elif status == -1:
+        elif status == "-1":
             return TrialStatus.FAILED
         
         return TrialStatus.RUNNING
@@ -95,8 +95,11 @@ class SlurmQueueClient:
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
         results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "drich-mobo-out_{}.txt".format(jobid))
-        results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
-        return results
+        if len(self.objectives) > 1:            
+            results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
+        else:
+            results_dict = {self.objectives[0]:results}
+        return results_dict
 
 SLURM_QUEUE_CLIENT = SlurmQueueClient()
 

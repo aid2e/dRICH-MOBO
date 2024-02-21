@@ -16,7 +16,7 @@ cd $current_dir
 $EPIC_MOBO_UTILS/runOverlapCheck_jobGeo.sh $1
 EOF
 
-line=$(cat overlap_log_$1.txt | grep "Number of illegal overlaps/extrusions")
+line=$(cat $AIDE_HOME/log/overlaps/overlap_log_$1.txt | grep "Number of illegal overlaps/extrusions")
 
 # empty: something wrong in overlap check, return -1
 if [ -z "$line" ]; then

@@ -1,5 +1,5 @@
 import numpy as np
-import os, sys
+import os, sys, subprocess
 
 #NEEDS TO:
 # 1. run overlap check
@@ -17,10 +17,12 @@ p_eta_scan = [
     [40, [2.0,2.5], 1],
     [40, [2.5,3.5], 1]
 ]
-outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "drich-mobo-out_{}.txt".format(sys.argv[1])
+
+jobid = sys.argv[1]
+outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "drich-mobo-out_{}.txt".format(jobid)
 
 def checkOverlap():
-    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/overlap_wrapper.sh"]
+    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/overlap_wrapper_job.sh",str(jobid)]
 
     commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
     output = commandout.stdout.decode('utf-8')
@@ -51,7 +53,7 @@ for i in range(len(p_eta_scan)):
     eta_min = p_eta_scan[i][1][0]
     eta_max = p_eta_scan[i][1][1]
     radiator = p_eta_scan[i][2]
-    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/shell_wrapper_job.sh", str(momentum), str(eta_min), str(eta_max), str(npart), str(radiator)]
+    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/shell_wrapper_job.sh", str(momentum), str(eta_min), str(eta_max), str(npart), str(radiator), str(jobid)]
     
     commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
     output = commandout.stdout.decode('utf-8')
