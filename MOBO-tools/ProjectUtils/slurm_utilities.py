@@ -98,7 +98,7 @@ class SlurmQueueClient:
         if len(self.objectives) > 1:            
             results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
         else:
-            results_dict = {self.objectives:results}
+            results_dict = {self.objectives[0]:results}
         return results_dict
 
 SLURM_QUEUE_CLIENT = SlurmQueueClient()
