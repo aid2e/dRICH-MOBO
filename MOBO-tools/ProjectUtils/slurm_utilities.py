@@ -82,11 +82,11 @@ class SlurmQueueClient:
             print("Error in checking slurm status, assuming still running")
             return TrialStatus.RUNNING
 
-        if status == 0:
+        if status == "0":
             return TrialStatus.RUNNING
-        elif status == 1:
+        elif status == "1":
             return TrialStatus.COMPLETED
-        elif status == -1:
+        elif status == "-1":
             return TrialStatus.FAILED
         
         return TrialStatus.RUNNING
@@ -95,8 +95,11 @@ class SlurmQueueClient:
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
         results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "drich-mobo-out_{}.txt".format(jobid))
-        results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
-        return results
+        if len(self.objectives) > 1:            
+            results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
+        else:
+            results_dict = {self.objectives:results}
+        return results_dict
 
 SLURM_QUEUE_CLIENT = SlurmQueueClient()
 
