@@ -115,15 +115,11 @@ if __name__ == "__main__":
         )
 
     # first test: nsigma pi-K separation at two momentum values
-    names = ["piKsep_plow_etalow",
-             "piKsep_plow_etamid",
-             "piKsep_plow_etahigh",
-             "piKsep_phigh_etalow",
-             "piKsep_phigh_etamid",
-             "piKsep_phigh_etahigh"
+    names = ["piKsep_plow",
+             "piKsep_phigh"
              ]  
     metrics = []
-
+    
     for name in names:
         metrics.append(
             SlurmJobMetric(
