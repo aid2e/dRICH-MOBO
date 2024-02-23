@@ -9,7 +9,7 @@
 using namespace std;
 
 
-void extractSPEres(const char* filename, const char* outname, int radiator){
+void extractSPEres(const char* filename, const char* outname, const char* outdir, int radiator){
 
   double thlow, thhigh;
   int nbins;
@@ -92,7 +92,10 @@ void extractSPEres(const char* filename, const char* outname, int radiator){
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
   c->SaveAs("spetest.png");
-  FILE *outfile = fopen(outname,"w");
+
+  TString outname_wdir = TString(outdir) + TString(outname);
+  FILE *outfile = fopen(outname_wdir.Data(),"w");
+
   
   fprintf(outfile, "%lf %lf %lf %lf \n",
 	  hnPhotons->GetMean(), f1->GetParameter(1),
@@ -104,14 +107,13 @@ void extractSPEres(const char* filename, const char* outname, int radiator){
 
 int main(int argc, char* argv[]){
   if(argc < 1){
-    cout << "usage: dRICHAana [filename] [outputname (txt)] [radiator: 0 - aerogel, 1 - gas] \n";
+    cout << "usage: dRICHAana [filename] [outputname (txt)] [output dir] [radiator: 0 - aerogel, 1 - gas] \n";
     return 1;
   }
   int rad;
-  stringstream s(argv[3]);
+  stringstream s(argv[4]);
   s >> rad;
   
-  extractSPEres(argv[1], argv[2], rad);
-  
+  extractSPEres(argv[1], argv[2], argv[3], rad);  
   return 0;  
 }

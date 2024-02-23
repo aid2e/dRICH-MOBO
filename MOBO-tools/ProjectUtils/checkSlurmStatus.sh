@@ -13,3 +13,4 @@ elif [ "$state" == "PENDING" ] || [ "$state" == "RUNNING" ] || [ "$state" == "CO
     echo 0
 elif [ "$state" == "FAILED" ]; then
     echo -1
+fi
