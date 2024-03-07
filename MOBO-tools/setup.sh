@@ -1,13 +1,13 @@
 #!/bin/bash
 
 
-EPIC_DIR=$(pwd)/epic/
+EPIC_DIR=$(pwd)/epic-geom-drich-mobo/
 if [ ! -d "$EPIC_DIR" ]; then
     echo "local ePIC source code not found, downloading"
-    git clone "https://github.com/eic/epic.git"
-    EPIC_DIR=$(pwd)/epic/
+    git clone "https://github.com/cpecar/epic-geom-drich-mobo.git"
+    EPIC_DIR=$(pwd)/epic-geom-drich-mobo/
 else
-    echo "ePIC source code found"
+    echo "ePIC geometry source code found"
 fi
 
 EIC_SHELL_DIR=$(pwd)
