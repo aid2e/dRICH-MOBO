@@ -111,8 +111,23 @@ if __name__ == "__main__":
             RangeParameter(name=i,
                            lower=float(detconfig[i]["lower"]), upper=float(detconfig[i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
-            for i in detconfig],
+            for i in detconfig["parameters"]],
         )
+
+
+
+    def constraint_callable(text, parameters):
+        def general_constraint(x):
+            #x: pytorch tensor of design parameters
+            values = {}
+            for i, name in enumerate(parameters):            
+                values[name] = x[...,i].item() 
+            return eval(text, {}, values)
+        return general_constraint
+
+    parameters = list(detconfig["parameters"].keys())
+    # constraints pass if output < 0
+    constraints = [constraint_callable(constraint, parameters) for constraint in detconfig['constraints']]
 
     # first test: nsigma pi-K separation at two momentum values
     names = ["piKsep_plow",
@@ -169,7 +184,7 @@ if __name__ == "__main__":
     last_call = 0
     
     start_tot = time.time()
-        
+    
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
     # Generate initial number of SOBOL points
@@ -185,7 +200,9 @@ if __name__ == "__main__":
                     },
                 ),
         botorch_acqf_class = qNoisyExpectedImprovement,
-        acquisition_options = {},
+        acquisition_options = {
+            constraints = constraints
+        },
         refit_on_update = True, 
         refit_on_cv = False, 
         warm_start_refit = True
