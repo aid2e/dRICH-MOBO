@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 
 import wandb
 
+from ax.modelbridge.registry import Models
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
@@ -105,11 +106,11 @@ if __name__ == "__main__":
             f.write("Optimization is running on GPU : " + torch.cuda.get_device_name() + "\n")
     print ("Running on GPU? ", isGPU)
     
-    print(detconfig)
+    print(detconfig["parameters"])
     search_space = SearchSpace(
         parameters=[
             RangeParameter(name=i,
-                           lower=float(detconfig[i]["lower"]), upper=float(detconfig[i]["upper"]), 
+                           lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
             for i in detconfig["parameters"]],
         )
@@ -201,13 +202,13 @@ if __name__ == "__main__":
                 ),
         botorch_acqf_class = qNoisyExpectedImprovement,
         acquisition_options = {
-            constraints = constraints
+            'constraints': constraints
         },
         refit_on_update = True, 
         refit_on_cv = False, 
         warm_start_refit = True
     )
-    subsequent_generation = GenerationStep(model = model, 
+    subsequent_generation = GenerationStep(model = model,
                                            num_trials = BATCH_SIZE,
                                            min_trials_observed = BATCH_SIZE
                                            )
