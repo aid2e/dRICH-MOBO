@@ -4,7 +4,8 @@ from ax.core.metric import Metric, MetricFetchResult, MetricFetchE
 from ax.core.base_trial import BaseTrial
 from ax.core.data import Data
 from ax.utils.common.result import Ok, Err
-
+from ax.core.trial import Trial
+from .slurm_utilities import get_slurm_queue_client
 
 class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
     def fetch_trial_data(self, trial: BaseTrial) -> MetricFetchResult:
@@ -16,7 +17,7 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
             slurm_job_queue = get_slurm_queue_client()
 
             metric_data = mock_job_queue.get_outcome_value_for_completed_job(
-                job_id=trial.run_metadata.get("job_id")
+                trial.run_metadata.get("job_id")
             )
             df_dict = {
                 "trial_index": trial.index,
