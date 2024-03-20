@@ -10,7 +10,7 @@ def getPath(param, configfile):
         print ("ERROR: parameter config file does not exist")
         sys.exit(1)
     with open(configfile) as f:
-        params = json.loads(f.read())
+        params = json.loads(f.read())["parameters"]
         if params[param]:
             name = params[param]["element"]
             path = params[param]["path"]
@@ -37,7 +37,7 @@ def editGeom(param, value, jobid):
     element = root.find(path)
     current_val = element.get(elementToEdit)
 
-    if elementToEdit == "centerz":
+    if param == "sensor_centerz":
         element.set(elementToEdit,"{}*{} - DRICH_zmin".format(value,units))
     else:
         if units != '':
