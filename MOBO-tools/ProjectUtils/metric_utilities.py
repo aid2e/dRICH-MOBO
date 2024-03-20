@@ -16,7 +16,7 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
         try:
             slurm_job_queue = get_slurm_queue_client()
 
-            metric_data = mock_job_queue.get_outcome_value_for_completed_job(
+            metric_data = slurm_job_queue.get_outcome_value_for_completed_job(
                 trial.run_metadata.get("job_id")
             )
             df_dict = {
@@ -24,7 +24,7 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
                 "metric_name": self.name,
                 "arm_name": trial.arm.name,
                 "mean": metric_data.get(self.name),
-                "sem": None, #unkown noise
+                "sem": 0.1 #TODO: real noise estimate
             }
             return Ok(value=Data(df=pd.DataFrame.from_records([df_dict])))
         except Exception as e:
