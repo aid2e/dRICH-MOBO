@@ -45,10 +45,10 @@ class SubJobManager:
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=30:00\n")
+            file.write("#SBATCH --time=1:00:00\n")
             file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
-
+            
             file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} {} {} {} \n".format(p,eta_min,eta_max,self.n_part,radiator,self.job_id))
         return filename
     def runJobs(self):
@@ -67,7 +67,7 @@ class SubJobManager:
         return
     
     def get_job_status(self, slurm_id):
-        # check status of slurm job
+        # check status of slurm job        
         if slurm_id == -1:
             # something failed in job submission
             return -1
@@ -75,7 +75,7 @@ class SubJobManager:
         shellcommand = [str(os.environ["AIDE_HOME"])+"/ProjectUtils/"+"checkSlurmStatus.sh", str(slurm_id)]
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
-        output = commandout.stdout.decode('utf-8')
+        output = commandout.stdout.decode('utf-8')        
         line_split = output.split()
 
         if len(line_split) == 1:
@@ -108,11 +108,11 @@ class SubJobManager:
                 if status == 0:
                     allDone = False
             if allDone == True:
-                print("Jobs finished")
+                print("Jobs finished, final statuses: ", statuses)
                 complete = True
                 self.final_job_status = statuses
             else:
-                time.sleep(60)
+                time.sleep(30)
         return
     def writeFailedObjectives(self):
         # executed when we have overlaps and want to punish this result,
@@ -143,8 +143,7 @@ class SubJobManager:
         # TODO: write a function to do this based on some weighting from physics multiplicities
         result_p = np.array(result_p)
         results = np.array(results)
-        print("results: ", results)
-        print("results_p: ", result_p)
+        
         if np.sum(result_p==14) > 0 and np.sum(result_p==40) > 0:
             final_results = np.array( [ np.mean( results[np.where(result_p==14)]),
                                         np.mean( results[np.where(result_p==40)]) ] )
@@ -173,6 +172,7 @@ noverlaps = manager.checkOverlap()
 
 if noverlaps != 0:
     # OVERLAP OR ERROR, return -1 for all objectives
+    print(noverlaps, " overlaps found, exiting trial")
     results = np.array( [-1 for i in range(len(p_eta_scan))] )
     np.savetxt(manager.outname,results)
     manager.writeFailedObjectives()
@@ -182,5 +182,9 @@ print("no overlaps, starting momentum/eta scan jobs")
 
 manager.runJobs()
 manager.monitorJobs()
-manager.retrieveResults()
-print("successfully retrieved results")
+if np.sum(manager.final_job_status) <= 0:
+    manager.writeFailedObjectives()
+    print("something wrong with all jobs")
+else:
+    manager.retrieveResults()
+    print("successfully retrieved results")
