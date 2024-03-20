@@ -106,7 +106,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 
 
 int main(int argc, char* argv[]){
-  if(argc < 1){
+  if(argc < 2){
     cout << "usage: dRICHAana [filename] [outputname (txt)] [output dir] [radiator: 0 - aerogel, 1 - gas] \n";
     return 1;
   }
