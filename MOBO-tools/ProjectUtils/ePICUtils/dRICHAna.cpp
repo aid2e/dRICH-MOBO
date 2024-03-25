@@ -11,18 +11,10 @@ using namespace std;
 
 void extractSPEres(const char* filename, const char* outname, const char* outdir, int radiator){
 
-  double thlow, thhigh;
-  int nbins;
-  if(radiator==0){
-    thlow = 150;
-    thhigh = 220;
-    nbins = 200;
-  }
-  else{
-    thlow = 20;
-    thhigh = 60;
-    nbins = 100;
-  }
+  double thlow = -10;
+  double thhigh = 10;
+  int nbins = 100;
+  
   TH1F* hSingleTheta = new TH1F("hSingleTheta", "", nbins, thlow, thhigh);
   TH1F* hnPhotons = new TH1F("hnPhotons", "", 60, -0.5, 60.5);  
   
@@ -39,11 +31,11 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     double n;
     if(radiator==0){
       pidCollection = "DRICHAerogelIrtCherenkovParticleID";
-      n = 1.01826;
+      n = 1.019;
     }
     else{
       pidCollection = "DRICHGasIrtCherenkovParticleID";
-      n = 1.000746;
+      n = 1.00076;
     }
     
     auto& dRichCherenkov = event.get<edm4eic::CherenkovParticleIDCollection>(pidCollection);
@@ -73,9 +65,9 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 	auto thetaPhi = dRichCherenkov[j].getThetaPhiPhotons();
 	int nPhotons = (int)thetaPhi.size();
 	hnPhotons->Fill(nPhotons);
-
+	
 	for(int k = 0; k < thetaPhi.size(); k++){
-	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
+	  hSingleTheta->Fill(thetaPhi[k][0]*1000 - chExpected);
 	}
       }      
     }
