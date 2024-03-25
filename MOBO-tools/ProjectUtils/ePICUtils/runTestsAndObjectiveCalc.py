@@ -136,7 +136,10 @@ class SubJobManager:
                 pi_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_pi+_p_{}_eta_{}_{}.txt".format(self.job_id,p,eta_min,eta_max))
                 mean_nphot = (pi_plus_cher[0] + K_plus_cher[0])/2
                 mean_sigma = (pi_plus_cher[2] + K_plus_cher[2])/2
-                nsigma = (abs(pi_plus_cher[1] - K_plus_cher[1])*math.sqrt(mean_nphot))/mean_sigma
+                if mean_sigma != 0:
+                    nsigma = (abs(pi_plus_cher[1] - K_plus_cher[1])*math.sqrt(mean_nphot))/mean_sigma
+                else:
+                    nsigma = 0
                 results.append(nsigma)
                 result_p.append(p)
         # mean to reduce to 2 momentum points
