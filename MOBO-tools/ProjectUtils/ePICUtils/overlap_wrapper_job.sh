@@ -10,9 +10,7 @@ fi
 current_dir=$(pwd)
 
 cat << EOF | $EIC_SHELL_HOME/eic-shell
-cd $EPIC_HOME
-source install/setup.sh
-cd $current_dir
+source $AIDE_HOME/load_epic.sh
 $EPIC_MOBO_UTILS/runOverlapCheck_jobGeo.sh $1
 EOF
 

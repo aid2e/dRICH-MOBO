@@ -28,21 +28,20 @@ import matplotlib.pyplot as plt
 
 import wandb
 
+from ax.modelbridge.registry import Models
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.models.torch.botorch_modular.model import BoTorchModel
+from ax.modelbridge.torch import TorchModelBridge
 from botorch.acquisition.monte_carlo import (
     qNoisyExpectedImprovement,
 )
-def RunSimulation(momentum,radiator):    
-    # calculate objectives
-    npart = 100
-    # TODO: full p/eta scan
-    result = piKsep(momentum,npart,radiator)
-    return result
+from botorch.acquisition.multi_objective.monte_carlo import (
+    qNoisyExpectedHypervolumeImprovement,
+)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -105,14 +104,55 @@ if __name__ == "__main__":
             f.write("Optimization is running on GPU : " + torch.cuda.get_device_name() + "\n")
     print ("Running on GPU? ", isGPU)
     
-    print(detconfig)
+    print(detconfig["parameters"])
+
+    def constraint_callable(text, parameters):
+        def general_constraint(x):
+            #x: pytorch tensor of design parameters
+            values = {}
+            for i, name in enumerate(parameters):            
+                values[name] = x[...,i].item() 
+            return eval(text, {}, values)
+        return general_constraint
+
+    def constraint_sobol(constraints,parameters):
+        A = np.zeros( (len(constraints), len(parameters)) )
+        b = np.zeros( (len(constraints), 1) )
+        for i in range(len(constraints)):
+            A[i][constraints[i][0]] = constraints[i][2]
+            A[i][constraints[i][1]] = constraints[i][3]
+            b[i] = constraints[i][4]
+        return [A, b]
+
+    # creates linear constraint to pass to ax SearchSpace
+    # based on list of parameters with weights given in --detparameters.
+    # constraints pass if output < 0
+    def constraint_ax(constraints,parameters):
+        # constraint_dict: Dict[str,float], bound: float
+        constraint_list = []
+        for c in constraints:
+            param_dict = {}
+            param_list = constraints[c]["parameters"]
+            for param in parameters:
+                if param in param_list:
+                    param_dict[param] = constraints[c]["weights"][param_list.index(param)]
+                else:
+                    param_dict[param] = 0
+            constraint_list.append( ParameterConstraint(param_dict,constraints[c]["bound"]) )
+        return constraint_list
+    
+    parameters = list(detconfig["parameters"].keys())
+    constraints_ax = constraint_ax(detconfig["constraints"],parameters)
+
+    # create search space with linear constraints
     search_space = SearchSpace(
         parameters=[
             RangeParameter(name=i,
-                           lower=float(detconfig[i]["lower"]), upper=float(detconfig[i]["upper"]), 
+                           lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
-            for i in detconfig],
-        )
+            for i in detconfig["parameters"]],
+        parameter_constraints=constraints_ax        
+    )
 
     # first test: nsigma pi-K separation at two momentum values
     names = ["piKsep_plow",
@@ -135,7 +175,7 @@ if __name__ == "__main__":
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
-    # TODO: set real reference from current drich values
+    # TODO: set real reference from current drich values?
     ref_point = torch.tensor([2.5 for i in range(len(names))])
     N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
@@ -169,40 +209,58 @@ if __name__ == "__main__":
     last_call = 0
     
     start_tot = time.time()
-        
+    
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-    # Generate initial number of SOBOL points
-    initial_generation = GenerationStep(model = Models.SOBOL, num_trials = N_INIT, min_trials_observed = N_INIT, max_parallelism=5)
+
+    print("initializing experiment")
+
+    # Generate initial SOBOL points    
+    initial_generation = GenerationStep(model = Models.SOBOL,
+                                        num_trials = N_INIT,
+                                        min_trials_observed = N_INIT,
+                                        max_parallelism=5,
+                                        )
+    gen_strategy_init = GenerationStrategy(steps = [initial_generation])
+
+    scheduler_init = Scheduler(
+        experiment=experiment,
+        generation_strategy=gen_strategy_init,
+        options=SchedulerOptions(),
+    )
+    print("running initial trials, Sobol generation")
+    scheduler_init.run_n_trials(max_trials=N_INIT)
+    
     # The Surrogate here is SAASBO with qNEHVI acq. 
     # TO DO: Need to play with the hyper parameters here
-    model = BoTorchModel(
+    model = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(),
         surrogate = Surrogate(
         botorch_model_class=SaasFullyBayesianSingleTaskGP,
         mll_options={
-            "num_samples": 256,  # Increasing this may result in better model fits
-            "warmup_steps": 512,  # Increasing this may result in better model fits
+            "num_samples": 1,  # Increasing this may result in better model fits
+            "warmup_steps": 1,  # Increasing this may result in better model fits
                     },
                 ),
-        botorch_acqf_class = qNoisyExpectedImprovement,
-        acquisition_options = {},
+        botorch_acqf_class = qNoisyExpectedHypervolumeImprovement,
+        acquisition_options = {
+        },
         refit_on_update = True, 
         refit_on_cv = False, 
         warm_start_refit = True
     )
-    subsequent_generation = GenerationStep(model = model, 
+    subsequent_generation = GenerationStep(model = Models.BOTORCH_MODULAR,
                                            num_trials = BATCH_SIZE,
                                            min_trials_observed = BATCH_SIZE
                                            )
-    gen_strategy = GenerationStrategy(steps = [initial_generation, subsequent_generation])
+    gen_strategy = GenerationStrategy(steps = [subsequent_generation])
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions())
-    scheduler.run_n_trials(max_trials=1)
-
+    scheduler.run_n_trials(max_trials=N_BATCH)
     
     exp_df = exp_to_df(experiment)
-    outcomes = torch.tensor(exp_df[names].values, **tkwargs)
-    print("successful outcomes: ", outcomes)
+    outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv("test_scheduler_df.csv")
     

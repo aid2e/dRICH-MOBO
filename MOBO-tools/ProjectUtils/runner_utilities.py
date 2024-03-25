@@ -8,14 +8,20 @@ from .slurm_utilities import get_slurm_queue_client
 
 class SlurmJobRunner(Runner):  # Deploys trials to external system.
     def run(self, trial: BaseTrial):
-        if not isinstance(trial, Trial):
-            raise ValueError("This runner only handles `Trial`.")
+        if not isinstance(trial, BaseTrial):
+            raise ValueError("This runner only handles `BaseTrial`.")
 
-        slurm_job_queue = get_slurm_queue_client()
-        job_id = slurm_job_queue.schedule_job_with_parameters(
-            parameters=trial.arm.parameters
-        )
-        return {"job_id": job_id}
+        slurm_job_queue = get_slurm_queue_client()        
+        return_job_id = []
+        for arm in trial.arms:
+            job_id = slurm_job_queue.schedule_job_with_parameters(
+                parameters=arm.parameters
+            )
+            return_job_id.append(job_id)
+        if len(return_job_id)==1:
+            return {"job_id": return_job_id[0]}
+        else:
+            return {"job_id": return_job_id}
     def poll_trial_status(self, trials: Iterable[BaseTrial]):
         status_dict = defaultdict(set)
         for trial in trials:
