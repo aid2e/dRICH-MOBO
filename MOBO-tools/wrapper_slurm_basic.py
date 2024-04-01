@@ -212,52 +212,37 @@ if __name__ == "__main__":
     
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-
-    print("initializing experiment")
-
-    # Generate initial SOBOL points    
-    initial_generation = GenerationStep(model = Models.SOBOL,
-                                        num_trials = N_INIT,
-                                        min_trials_observed = N_INIT,
-                                        max_parallelism=5,
-                                        )
-    gen_strategy_init = GenerationStrategy(steps = [initial_generation])
-
-    scheduler_init = Scheduler(
-        experiment=experiment,
-        generation_strategy=gen_strategy_init,
-        options=SchedulerOptions(),
-    )
-    print("running initial trials, Sobol generation")
-    scheduler_init.run_n_trials(max_trials=N_INIT)
     
-    # The Surrogate here is SAASBO with qNEHVI acq. 
-    # TO DO: Need to play with the hyper parameters here
-    model = Models.BOTORCH_MODULAR(
-        experiment=experiment,
-        data=experiment.fetch_data(),
-        surrogate = Surrogate(
-        botorch_model_class=SaasFullyBayesianSingleTaskGP,
-        mll_options={
-            "num_samples": 1,  # Increasing this may result in better model fits
-            "warmup_steps": 1,  # Increasing this may result in better model fits
-                    },
-                ),
-        botorch_acqf_class = qNoisyExpectedHypervolumeImprovement,
-        acquisition_options = {
-        },
-        refit_on_update = True, 
-        refit_on_cv = False, 
-        warm_start_refit = True
+    gen_strategy = GenerationStrategy(
+        steps=[
+            GenerationStep(
+                model=Models.SOBOL,
+                num_trials=5,
+                min_trials_observed=5,
+                max_parallelism=5
+            ),
+            GenerationStep(
+                model=Models.BOTORCH_MODULAR,            
+                num_trials=-1,
+                model_kwargs={  # args for BoTorchModel
+                    "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,
+                                           mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
+                                                        },
+                                           ),
+                    "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,
+                    "refit_on_update": True,
+                    "refit_on_cv": True,
+                    "warm_start_refit": True
+                },
+                max_parallelism=5
+            ),
+        ]
     )
-    subsequent_generation = GenerationStep(model = Models.BOTORCH_MODULAR,
-                                           num_trials = BATCH_SIZE,
-                                           min_trials_observed = BATCH_SIZE
-                                           )
-    gen_strategy = GenerationStrategy(steps = [subsequent_generation])
+    
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions())
+    print("running BoTorch trials")
     scheduler.run_n_trials(max_trials=N_BATCH)
     
     exp_df = exp_to_df(experiment)
