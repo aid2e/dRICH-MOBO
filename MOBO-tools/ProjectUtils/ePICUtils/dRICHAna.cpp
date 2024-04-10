@@ -1,4 +1,5 @@
 #include "edm4hep/MCParticleCollection.h"
+#include "edm4hep/ReconstructedParticleCollection.h"
 #include "edm4eic/CherenkovParticleIDCollection.h"
 #include "podio/ROOTFrameReader.h"
 #include "podio/Frame.h"
@@ -11,10 +12,20 @@ using namespace std;
 
 void extractSPEres(const char* filename, const char* outname, const char* outdir, int radiator){
 
-  double thlow = -10;
-  double thhigh = 10;
-  int nbins = 100;
+  double thlow, thhigh;
+  int nbins;
+  if(radiator==0){
+    thlow = 150;
+    thhigh = 220;
+    nbins = 200;
+  }
+  else{
+    thlow = 20;
+    thhigh = 60;
+    nbins = 100;
+  }
   
+  TH1F* hSingleThetaError = new TH1F("hSingleThetaError", "", 100, -10, 10);
   TH1F* hSingleTheta = new TH1F("hSingleTheta", "", nbins, thlow, thhigh);
   TH1F* hnPhotons = new TH1F("hnPhotons", "", 60, -0.5, 60.5);  
   
@@ -22,7 +33,8 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   reader.openFile(filename);
   
   int nev = reader.getEntries("events");
-    
+  double nRecoTrack = 0;
+  double ndRICHDet = 0;    
   // event loop
   for(int i = 0; i < nev; i++){
     const auto event = podio::Frame(reader.readNextEntry("events"));
@@ -40,6 +52,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     
     auto& dRichCherenkov = event.get<edm4eic::CherenkovParticleIDCollection>(pidCollection);
     auto& MCParticles = event.get<edm4hep::MCParticleCollection>("MCParticles");    
+    auto& chargedParticles = event.get<edm4hep::ReconstructedParticleCollection>("ReconstructedChargedParticles");    
 
     double px, py, pz, p, mass;
     double betaTrue;    
@@ -57,17 +70,25 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
       cout << "Error: no thrown particles" << endl;
       continue;
     }
-    
+
+    /*if(!chargedParticles.isValid()) {
+      cout << "no reco charged particles" << endl;
+      continue; // skip if no reco charged particles
+      }*/
+    nRecoTrack += 1.;
     if (dRichCherenkov.isValid()) {
       double chExpected = acos(1/(n*betaTrue))*1000;
-      
+
       for(unsigned int j = 0; j < dRichCherenkov.size(); j++){
 	auto thetaPhi = dRichCherenkov[j].getThetaPhiPhotons();
 	int nPhotons = (int)thetaPhi.size();
 	hnPhotons->Fill(nPhotons);
+
+	if(thetaPhi.size() > 0) ndRICHDet += 1.; // if some photons, consider to be seen by dRICH
 	
 	for(int k = 0; k < thetaPhi.size(); k++){
-	  hSingleTheta->Fill(thetaPhi[k][0]*1000 - chExpected);
+	  hSingleThetaError->Fill(thetaPhi[k][0]*1000 - chExpected);
+	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
 	}
       }      
     }
@@ -76,11 +97,12 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     }
     
   }
-  double mean = hSingleTheta->GetMean();
-  double rms = hSingleTheta->GetRMS();
+  cout << "tracks: " << nRecoTrack << " seen by dRICH: " << ndRICHDet << endl;
+  double mean = hSingleThetaError->GetMean();
+  double rms = hSingleThetaError->GetRMS();
   
   TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
-  hSingleTheta->Fit("gaussianFit","R");
+  hSingleThetaError->Fit("gaussianFit","R");
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
   c->SaveAs("spetest.png");
@@ -90,8 +112,9 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 
   
   fprintf(outfile, "%lf %lf %lf %lf \n",
-	  hnPhotons->GetMean(), f1->GetParameter(1),
-	  f1->GetParameter(2), f1->GetChisquare());
+	  hnPhotons->GetMean(), hSingleTheta->GetMean(),
+	  f1->GetParameter(2),
+	  ndRICHDet/nRecoTrack);
   
   return;
 }
