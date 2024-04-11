@@ -11,6 +11,6 @@ if [ "$state" == "COMPLETED" ] && [ "$exit_code" == "0:0" ]; then
     echo 1
 elif [ "$state" == "PENDING" ] || [ "$state" == "RUNNING" ] || [ "$state" == "COMPLETING" ] || [ "$state" == "SUSPENDED" ]; then
     echo 0
-elif [ "$state" == "FAILED" ] || [ "$state" == "TIMEOUT" ] || [ "$state" == "OUT_OF_MEMORY" ]; then
+elif [ "$state" == "FAILED" ] || [ "$state" == "TIMEOUT" ] || [ "$state" == "OUT_OF_MEMORY" ] || [ "$state" == "CANCELLED" ]; then
     echo -1
 fi
