@@ -55,7 +55,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     double px, py, pz, p, mass;
     double betaTrue;
 
-    // need to check MC particles, see if we missed anything (account for efficiency)
+    // get true momentum from thrown particle
     if(MCParticles.isValid()){
       px = MCParticles[0].getMomentum().x;
       py = MCParticles[0].getMomentum().y;
@@ -69,10 +69,6 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
       continue;
     }
     
-    /*if(chargedParticles.size() < 1) {
-      cout << "no reco charged particles" << endl;
-      continue; // skip if no reco charged particles
-      }*/
     nThrown += 1.;
     if (dRichCherenkov.isValid()) {
       double chExpected = acos(1/(n*betaTrue))*1000;
@@ -80,7 +76,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
       for(unsigned int j = 0; j < dRichCherenkov.size(); j++){
 	auto thetaPhi = dRichCherenkov[j].getThetaPhiPhotons();
 
-	int nPhotons = (int)thetaPhi.size();
+	int nPhotons = dRichCherenkov[j].getNpe();
 	if(nPhotons == 0){
 	  // if no photons, consider this to be missed
 	  continue;
@@ -94,11 +90,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
 	}
       }      
-    }
-    else{
-      hnPhotons->Fill(0);
-    }
-    
+    }       
   }
 
   double mean = hSingleThetaError->GetMean();
