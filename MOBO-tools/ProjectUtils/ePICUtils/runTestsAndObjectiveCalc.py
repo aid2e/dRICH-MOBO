@@ -45,7 +45,7 @@ class SubJobManager:
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=1:00:00\n")
+            file.write("#SBATCH --time=2:00:00\n")
             file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             
