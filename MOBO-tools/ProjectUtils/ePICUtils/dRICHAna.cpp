@@ -1,5 +1,4 @@
 #include "edm4hep/MCParticleCollection.h"
-#include "edm4hep/ReconstructedParticleCollection.h"
 #include "edm4eic/CherenkovParticleIDCollection.h"
 #include "podio/ROOTFrameReader.h"
 #include "podio/Frame.h"
@@ -33,7 +32,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   reader.openFile(filename);
   
   int nev = reader.getEntries("events");
-  double nRecoTrack = 0;
+  double nThrown = 0;
   double ndRICHDet = 0;    
   // event loop
   for(int i = 0; i < nev; i++){
@@ -52,10 +51,9 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     
     auto& dRichCherenkov = event.get<edm4eic::CherenkovParticleIDCollection>(pidCollection);
     auto& MCParticles = event.get<edm4hep::MCParticleCollection>("MCParticles");    
-    auto& chargedParticles = event.get<edm4hep::ReconstructedParticleCollection>("ReconstructedChargedParticles");    
 
     double px, py, pz, p, mass;
-    double betaTrue;    
+    double betaTrue;
 
     // need to check MC particles, see if we missed anything (account for efficiency)
     if(MCParticles.isValid()){
@@ -70,21 +68,26 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
       cout << "Error: no thrown particles" << endl;
       continue;
     }
-
-    /*if(!chargedParticles.isValid()) {
+    
+    /*if(chargedParticles.size() < 1) {
       cout << "no reco charged particles" << endl;
       continue; // skip if no reco charged particles
       }*/
-    nRecoTrack += 1.;
+    nThrown += 1.;
     if (dRichCherenkov.isValid()) {
       double chExpected = acos(1/(n*betaTrue))*1000;
 
       for(unsigned int j = 0; j < dRichCherenkov.size(); j++){
 	auto thetaPhi = dRichCherenkov[j].getThetaPhiPhotons();
-	int nPhotons = (int)thetaPhi.size();
-	hnPhotons->Fill(nPhotons);
 
-	if(thetaPhi.size() > 0) ndRICHDet += 1.; // if some photons, consider to be seen by dRICH
+	int nPhotons = (int)thetaPhi.size();
+	if(nPhotons == 0){
+	  // if no photons, consider this to be missed
+	  continue;
+	}
+	
+	ndRICHDet += 1.; // if some photons, consider to be seen by dRICH (cut at ~3 photons? noise?)
+	hnPhotons->Fill(nPhotons);
 	
 	for(int k = 0; k < thetaPhi.size(); k++){
 	  hSingleThetaError->Fill(thetaPhi[k][0]*1000 - chExpected);
@@ -97,7 +100,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     }
     
   }
-  cout << "tracks: " << nRecoTrack << " seen by dRICH: " << ndRICHDet << endl;
+
   double mean = hSingleThetaError->GetMean();
   double rms = hSingleThetaError->GetRMS();
   
@@ -114,7 +117,7 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   fprintf(outfile, "%lf %lf %lf %lf \n",
 	  hnPhotons->GetMean(), hSingleTheta->GetMean(),
 	  f1->GetParameter(2),
-	  ndRICHDet/nRecoTrack);
+	  ndRICHDet/nThrown);
   
   return;
 }
