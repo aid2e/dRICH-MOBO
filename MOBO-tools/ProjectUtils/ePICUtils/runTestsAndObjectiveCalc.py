@@ -119,7 +119,7 @@ class SubJobManager:
         # executed when we have overlaps and want to punish this result,
         # but the trial didn't exactly "fail"
         # TODO: is this how we want to treat this?
-        final_results = np.array( [0, 0] )
+        final_results = np.array( [0, 0, 0] )
         np.savetxt(self.outname,final_results)
         return
     def retrieveResults(self):
@@ -167,7 +167,7 @@ class SubJobManager:
         return
 
 nobj = 6
-npart = 1000
+npart = 100
 p_eta_scan = [
     [15, [1.3,2.0], 0],
     [15, [2.0,2.5], 0],
