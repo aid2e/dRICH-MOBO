@@ -33,12 +33,12 @@ class SubJobManager:
         else:
             return -1
         return -1    
-    def makeSlurmScript(self, p_eta_point):
+    def makeSlurmScript(self, p_eta_point, particle):
         p = p_eta_point[0]
         eta_min = p_eta_point[1][0]
         eta_max = p_eta_point[1][1]        
         radiator = p_eta_point[2]            
-        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_p_{}_eta_{}_{}.slurm".format(self.job_id,p,eta_min,eta_max)
+        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_{}_p_{}_eta_{}_{}.slurm".format(self.job_id,particle,p,eta_min,eta_max)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=drich-mobo\n")
@@ -49,21 +49,22 @@ class SubJobManager:
             file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             
-            file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} {} {} {} \n".format(p,eta_min,eta_max,self.n_part,radiator,self.job_id))
+            file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} {} {} {} {} \n".format(p,eta_min,eta_max,self.n_part,radiator,self.job_id,particle))
         return filename
     def runJobs(self):
         for p_eta_point in self.p_eta_points:
-            slurm_file = self.makeSlurmScript(p_eta_point)
-            shellcommand = ["sbatch",slurm_file]
-            commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
-            output = commandout.stdout.decode('utf-8')
-            line_split = output.split()
-            if len(line_split) == 4:
-                slurm_job_id = int(line_split[3])
-                self.slurm_job_ids.append(slurm_job_id)
-            else:
-                #slurm job submission failed, re-submit? or just count as failed?
-                self.slurm_job_ids.append(-1)
+            for particle in ["pi+","kaon+"]:
+                slurm_file = self.makeSlurmScript(p_eta_point,particle)                
+                shellcommand = ["sbatch",slurm_file]                
+                commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
+                output = commandout.stdout.decode('utf-8')
+                line_split = output.split()
+                if len(line_split) == 4:
+                    slurm_job_id = int(line_split[3])
+                    self.slurm_job_ids.append(slurm_job_id)
+                else:
+                    #slurm job submission failed, re-submit? or just count as failed?
+                    self.slurm_job_ids.append(-1)
         return
     
     def get_job_status(self, slurm_id):
@@ -147,8 +148,8 @@ class SubJobManager:
         result_p = np.array(result_p)
         results = np.array(results)
         
-        if np.sum(result_p==14) > 0 and np.sum(result_p==40) > 0:
-            final_results = np.array( [ np.mean( results[np.where(result_p==14)]),
+        if np.sum(result_p==15) > 0 and np.sum(result_p==40) > 0:
+            final_results = np.array( [ np.mean( results[np.where(result_p==15)]),
                                         np.mean( results[np.where(result_p==40)]) ] )
         else:
             # if all jobs failed for a momentum point, exit failed
@@ -158,11 +159,11 @@ class SubJobManager:
         return
 
 nobj = 6
-npart = 100
+npart = 1000
 p_eta_scan = [
-    [14, [1.3,2.0], 0],
-    [14, [2.0,2.5], 0],
-    [14, [2.5,3.5], 0],
+    [15, [1.3,2.0], 0],
+    [15, [2.0,2.5], 0],
+    [15, [2.5,3.5], 0],
     [40, [1.3,2.0], 1],
     [40, [2.0,2.5], 1],
     [40, [2.5,3.5], 1]

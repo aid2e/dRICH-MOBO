@@ -11,10 +11,20 @@ using namespace std;
 
 void extractSPEres(const char* filename, const char* outname, const char* outdir, int radiator){
 
-  double thlow = -10;
-  double thhigh = 10;
-  int nbins = 100;
+  double thlow, thhigh;
+  int nbins;
+  if(radiator==0){
+    thlow = 150;
+    thhigh = 220;
+    nbins = 200;
+  }
+  else{
+    thlow = 20;
+    thhigh = 60;
+    nbins = 100;
+  }
   
+  TH1F* hSingleThetaError = new TH1F("hSingleThetaError", "", 100, -10, 10);
   TH1F* hSingleTheta = new TH1F("hSingleTheta", "", nbins, thlow, thhigh);
   TH1F* hnPhotons = new TH1F("hnPhotons", "", 60, -0.5, 60.5);  
   
@@ -22,7 +32,8 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   reader.openFile(filename);
   
   int nev = reader.getEntries("events");
-    
+  double nThrown = 0;
+  double ndRICHDet = 0;    
   // event loop
   for(int i = 0; i < nev; i++){
     const auto event = podio::Frame(reader.readNextEntry("events"));
@@ -42,9 +53,9 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
     auto& MCParticles = event.get<edm4hep::MCParticleCollection>("MCParticles");    
 
     double px, py, pz, p, mass;
-    double betaTrue;    
+    double betaTrue;
 
-    // need to check MC particles, see if we missed anything (account for efficiency)
+    // get true momentum from thrown particle
     if(MCParticles.isValid()){
       px = MCParticles[0].getMomentum().x;
       py = MCParticles[0].getMomentum().y;
@@ -58,29 +69,35 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
       continue;
     }
     
+    nThrown += 1.;
     if (dRichCherenkov.isValid()) {
       double chExpected = acos(1/(n*betaTrue))*1000;
-      
+
       for(unsigned int j = 0; j < dRichCherenkov.size(); j++){
 	auto thetaPhi = dRichCherenkov[j].getThetaPhiPhotons();
-	int nPhotons = (int)thetaPhi.size();
+
+	int nPhotons = dRichCherenkov[j].getNpe();
+	if(nPhotons == 0){
+	  // if no photons, consider this to be missed
+	  continue;
+	}
+	
+	ndRICHDet += 1.; // if some photons, consider to be seen by dRICH (cut at ~3 photons? noise?)
 	hnPhotons->Fill(nPhotons);
 	
 	for(int k = 0; k < thetaPhi.size(); k++){
-	  hSingleTheta->Fill(thetaPhi[k][0]*1000 - chExpected);
+	  hSingleThetaError->Fill(thetaPhi[k][0]*1000 - chExpected);
+	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
 	}
       }      
-    }
-    else{
-      hnPhotons->Fill(0);
-    }
-    
+    }       
   }
-  double mean = hSingleTheta->GetMean();
-  double rms = hSingleTheta->GetRMS();
+
+  double mean = hSingleThetaError->GetMean();
+  double rms = hSingleThetaError->GetRMS();
   
   TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
-  hSingleTheta->Fit("gaussianFit","R");
+  hSingleThetaError->Fit("gaussianFit","R");
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
   c->SaveAs("spetest.png");
@@ -90,8 +107,9 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 
   
   fprintf(outfile, "%lf %lf %lf %lf \n",
-	  hnPhotons->GetMean(), f1->GetParameter(1),
-	  f1->GetParameter(2), f1->GetChisquare());
+	  hnPhotons->GetMean(), hSingleTheta->GetMean(),
+	  f1->GetParameter(2),
+	  ndRICHDet/nThrown);
   
   return;
 }
