@@ -156,7 +156,8 @@ if __name__ == "__main__":
 
     # first test: nsigma pi-K separation at two momentum values
     names = ["piKsep_plow",
-             "piKsep_phigh"
+             "piKsep_phigh",
+             "acceptance"
              ]  
     metrics = []
     
@@ -170,7 +171,9 @@ if __name__ == "__main__":
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[i], bound=2.5, relative=False) for i in range(len(names))
+        ObjectiveThreshold(metric=metrics[0], bound=2.5, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=2.5, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=0.7, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
@@ -217,8 +220,8 @@ if __name__ == "__main__":
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
-                num_trials=5,
-                min_trials_observed=5,
+                num_trials=35,
+                min_trials_observed=30,
                 max_parallelism=5
             ),
             GenerationStep(

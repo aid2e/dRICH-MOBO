@@ -18,7 +18,8 @@ class SlurmQueueClient:
     jobs = {}
     totaljobs = 0
     objectives = ["piKsep_plow",
-                  "piKsep_phigh"
+                  "piKsep_phigh",
+                  "acceptance"
                   ]
     
     def submit_slurm_job(self, jobnum):

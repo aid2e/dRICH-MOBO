@@ -19,12 +19,19 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
             metric_data = slurm_job_queue.get_outcome_value_for_completed_job(
                 trial.run_metadata.get("job_id")
             )
+            #TODO: get real uncertainty/noise estimate
+            if "piKsep" in self.name:
+                sem = 0.1
+            elif self.name=="acceptance":
+                sem = 0.05
+            else:
+                sem = 0.1
             df_dict = {
                 "trial_index": trial.index,
                 "metric_name": self.name,
                 "arm_name": trial.arm.name,
                 "mean": metric_data.get(self.name),
-                "sem": 0.1 #TODO: real noise estimate
+                "sem": sem
             }
             return Ok(value=Data(df=pd.DataFrame.from_records([df_dict])))
         except Exception as e:

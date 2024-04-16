@@ -45,7 +45,7 @@ class SubJobManager:
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=1:00:00\n")
+            file.write("#SBATCH --time=2:00:00\n")
             file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             
@@ -119,13 +119,14 @@ class SubJobManager:
         # executed when we have overlaps and want to punish this result,
         # but the trial didn't exactly "fail"
         # TODO: is this how we want to treat this?
-        final_results = np.array( [0, 0] )
+        final_results = np.array( [0, 0, 0] )
         np.savetxt(self.outname,final_results)
         return
     def retrieveResults(self):
         # when results finished, retrieve analysis script outputs
         # and calculate objectives
-        results = []
+        results_nsigma = []
+        results_eff = []
         result_p = []
         for i in range(len(self.p_eta_points)):
             p_eta_point = self.p_eta_points[i]
@@ -137,20 +138,27 @@ class SubJobManager:
                 pi_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_pi+_p_{}_eta_{}_{}.txt".format(self.job_id,p,eta_min,eta_max))
                 mean_nphot = (pi_plus_cher[0] + K_plus_cher[0])/2
                 mean_sigma = (pi_plus_cher[2] + K_plus_cher[2])/2
+                #calculate nsigma separation 
                 if mean_sigma != 0:
                     nsigma = (abs(pi_plus_cher[1] - K_plus_cher[1])*math.sqrt(mean_nphot))/mean_sigma
                 else:
                     nsigma = 0
-                results.append(nsigma)
+                #get mean fraction of tracks with reco photons
+                mean_eff = (pi_plus_cher[3] + K_plus_cher[3])/2
+                results_nsigma.append(nsigma)
+                results_eff.append(mean_eff)
                 result_p.append(p)
         # mean to reduce to 2 momentum points
         # TODO: write a function to do this based on some weighting from physics multiplicities
         result_p = np.array(result_p)
-        results = np.array(results)
+        results_nsigma = np.array(results_nsigma)
+        results_eff = np.array(results_eff)
         
         if np.sum(result_p==15) > 0 and np.sum(result_p==40) > 0:
-            final_results = np.array( [ np.mean( results[np.where(result_p==15)]),
-                                        np.mean( results[np.where(result_p==40)]) ] )
+            final_results = np.array( [ np.mean( results_nsigma[np.where(result_p==15)] ),
+                                        np.mean( results_nsigma[np.where(result_p==40)] ),
+                                        np.mean( results_eff ) 
+                                       ] )
         else:
             # if all jobs failed for a momentum point, exit failed
             # TODO: is this how we want to treat this case?
@@ -159,7 +167,7 @@ class SubJobManager:
         return
 
 nobj = 6
-npart = 1000
+npart = 100
 p_eta_scan = [
     [15, [1.3,2.0], 0],
     [15, [2.0,2.5], 0],
