@@ -11,6 +11,7 @@ import numpy as np
 
 from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df
+from ax.storage.json_store.save import save_experiment
 
 # Model registry for creating multi-objective optimization models.
 from ax.modelbridge.registry import Models
@@ -251,4 +252,5 @@ if __name__ == "__main__":
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv("test_scheduler_df.csv")
+    save_experiment(experiment,"test_scheduler_experiment.json")
     
