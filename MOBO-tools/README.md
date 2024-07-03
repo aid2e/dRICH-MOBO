@@ -15,7 +15,9 @@ If this is your first time installing this repo:
 
 **Running MOBO wrapper**
 
-Wrapper for steering MOBO with botorch still under development, but the current simple wrapper can be run with
+The current MOBO wrapper script can be run using 
 ```python wrapper_slurm_basic.py -c optimize.config -d parameters.config```
 
-Currently, this utilizes a slurm trial scheduler which will submit each trial as a slurm job, with each simulation point carried out in additional slurm jobs (configured for the Duke compute cluster, but partitions etc. can be edited to reflect any other cluster in ProjectUtils/slurm_utilities.py and ProjectUtils/ePICUtils/runTestsAndObjectiveCalc.py). joblib and PanDA/iDDS wrappers will be under development.
+Currently, this by default utilizes a slurm trial scheduler which will submit each trial as a slurm job, with each simulation point carried out in additional slurm jobs (configured for the Duke compute cluster, but partitions etc. can be edited to reflect any other cluster in ProjectUtils/slurm_utilities.py and ProjectUtils/ePICUtils/runTestsAndObjectiveCalc.py). joblib and PanDA/iDDS wrappers will be under development.
+
+```wrapper.py``` is currently out of date with other pieces of the workflow, such as editing the dRICH geometry, and will fail if used.
