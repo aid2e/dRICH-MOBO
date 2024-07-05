@@ -81,10 +81,11 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 	  // if no photons, consider this to be missed
 	  continue;
 	}
+	if(nPhotons > 5){
+	  ndRICHDet += 1.; // if > 5 photons, consider this to be accepted
+	}
 	
-	ndRICHDet += 1.; // if some photons, consider to be seen by dRICH (cut at ~3 photons? noise?)
-	hnPhotons->Fill(nPhotons);
-	
+	hnPhotons->Fill(nPhotons);	
 	for(int k = 0; k < thetaPhi.size(); k++){
 	  hSingleThetaError->Fill(thetaPhi[k][0]*1000 - chExpected);
 	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
