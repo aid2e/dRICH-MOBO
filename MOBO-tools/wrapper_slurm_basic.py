@@ -235,6 +235,6 @@ if __name__ == "__main__":
         metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
     )
     save_experiment(experiment=experiment,
-                    filepath="dualmirror_experiment.json"
+                    filepath="dualmirror_experiment.json",
                     encoder_registry=bundle.encoder_registry)
     
