@@ -22,9 +22,9 @@ def getPath(param, configfile):
 
 def editGeom(param, value, jobid):
     if jobid == -1:        
-        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/drich.xml")
+        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich.xml")
     else:
-        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/drich_{}.xml".format(jobid))        
+        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))        
 
     tree = ET.parse(xmlfile)
     root = tree.getroot()
@@ -44,6 +44,14 @@ def editGeom(param, value, jobid):
             element.set(elementToEdit,"{}*{}".format(value,units))        
         else:
             element.set(elementToEdit,"{}".format(value))
+
+        if ("radius" in param) and ("mirror" in param):
+            # set center z based on mirror radius
+            z_path = path.replace('radius','centerz')
+            z_element = root.find(centerz_path)
+            z_elementToEdit = elementToEdit.replace('radius','centerz')
+            # fix position to drich backplane
+            z_element.set(z_elementToEdit,"{}*{}".format(312 - value, units))
     tree.write(xmlfile)
     return
 
@@ -72,8 +80,8 @@ def create_xml(parameters, jobid):
     editEPIC(epic_xml_job, jobid)
     
     #create and edit drich xml
-    drich_xml = str(os.environ['EPIC_HOME']+"/compact/pid/drich.xml")
-    drich_xml_job = str(os.environ['EPIC_HOME']+"/compact/pid/drich_{}.xml".format(jobid))
+    drich_xml = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich.xml")
+    drich_xml_job = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))
     shutil.copyfile(drich_xml, drich_xml_job)
 
     for param in parameters:
