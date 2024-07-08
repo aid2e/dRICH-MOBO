@@ -44,6 +44,9 @@ from botorch.acquisition.multi_objective.monte_carlo import (
     qNoisyExpectedHypervolumeImprovement,
 )
 
+# for json storage of experiment
+from ax.storage.registry_bundle import RegistryBundle
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
     parser.add_argument('-c', '--config', 
@@ -127,12 +130,13 @@ if __name__ == "__main__":
                     param_dict[param] = constraints[c]["weights"][param_list.index(param)]
                 else:
                     param_dict[param] = 0
+            print("param dict: ", param_dict, " param_list: ", param_list)
             constraint_list.append( ParameterConstraint(param_dict,constraints[c]["bound"]) )
         return constraint_list
     
     parameters = list(detconfig["parameters"].keys())
     constraints_ax = constraint_ax(detconfig["constraints"],parameters)
-
+    print(constraints_ax)
     # create search space with linear constraints
     search_space = SearchSpace(
         parameters=[
@@ -142,10 +146,10 @@ if __name__ == "__main__":
             for i in detconfig["parameters"]],
         parameter_constraints=constraints_ax        
     )
-
+    print("made search space")
     # first test: nsigma pi-K separation at two momentum values
-    names = ["piKsep_plow",
-             "piKsep_phigh",
+    names = ["piKsep_etalow",
+             "piKsep_etahigh",
              "acceptance"
              ]  
     metrics = []
@@ -168,7 +172,7 @@ if __name__ == "__main__":
                                                            objective_thresholds=objective_thresholds)
 
     # TODO: set real reference from current drich values?
-    ref_point = torch.tensor([2.5 for i in range(len(names))])
+    ref_point = torch.tensor([2.5, 2.5, 0.7])
     N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
     N_BATCH = config["n_calls"]
@@ -190,13 +194,13 @@ if __name__ == "__main__":
     
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-    
+    print("made experiment")
     gen_strategy = GenerationStrategy(
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
-                num_trials=35,
-                min_trials_observed=30,
+                num_trials=5,
+                min_trials_observed=5,
                 max_parallelism=5
             ),
             GenerationStep(
@@ -225,6 +229,12 @@ if __name__ == "__main__":
     
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
-    exp_df.to_csv("test_scheduler_df.csv")
-    save_experiment(experiment,"test_scheduler_experiment.json")
+    exp_df.to_csv("dualmirror_df.csv")
+
+    bundle = RegistryBundle(
+        metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
+    )
+    save_experiment(experiment=experiment,
+                    filepath="dualmirror_experiment.json"
+                    encoder_registry=bundle.encoder_registry)
     
