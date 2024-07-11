@@ -70,20 +70,8 @@ if __name__ == "__main__":
     detconfig = ReadJsonFile(args.detparameters)
     jsonFile = args.json_file
     profiler = args.profile
-    outdir = config["OUTPUT_DIR"]
-    save_every_n = config["save_every_n_call"]
-    doMonitor = (True if config.get("WandB_params") else False) and profiler
-    MLTracker = None
-    if (doMonitor):
-        if (not os.getenv("WANDB_API_KEY") and not os.path.exists(args.secret_file)):
-            print ("Please set WANDB_API_KEY in your environment variables or include a file named secrets.key in the same directory as this script.")
-            sys.exit()
-        else:
-            os.environ["WANDB_API_KEY"] = ReadJsonFile(args.secret_file)["WANDB_API_KEY"] if not os.getenv("WANDB_API_KEY") else os.environ["WANDB_API_KEY"]
-            wandb.login(anonymous='never', key = os.environ['WANDB_API_KEY'], relogin=True)
-            track_config = {"n_design_params": config["n_design_params"], "n_objectives" : config["n_objectives"]}
-            MLTracker = wandb.init(config = track_config, **config["WandB_params"])
-            
+    outdir = config["OUTPUT_DIR"]    
+                
     optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
@@ -188,21 +176,7 @@ if __name__ == "__main__":
     N_BATCH = config["n_calls"]
     num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
     warmup_steps = 128 if (not config.get("MOBO_params")) else config["MOBO_params"]["warmup_steps"]
-    if (doMonitor):
-        MLTracker.config["BATCH_SIZE"] = BATCH_SIZE
-        MLTracker.config["N_BATCH"] = N_BATCH
-        MLTracker.config["num_samples"] = num_samples
-        MLTracker.config["warmup_steps"] = warmup_steps
-        MLTracker.define_metric("iterations")
-        logMetrics = ["MCMC Training [s]", 
-                      f"Gen Acq func (q = {BATCH_SIZE}) [s]",
-                      f"Trail Exec (q = {BATCH_SIZE}) [s]",
-                      "HV",
-                      "Increase in HV w.r.t true pareto",
-                      "HV Calculation [s]",
-                      "Total time [s]"]
-        for l in logMetrics:
-            MLTracker.define_metric(l, step_metric = "iterations")
+    
     hv_list = []
     time_gen = []
     time_mcmc = []
