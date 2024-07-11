@@ -45,7 +45,7 @@ from botorch.acquisition.multi_objective.monte_carlo import (
 )
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description= "Optimization, dRICH")
+    parser = argparse.ArgumentParser(description= "Optimization, KLM")
     parser.add_argument('-c', '--config', 
                         help='Optimization configuration file', 
                         type = str, required = True)
@@ -143,44 +143,46 @@ if __name__ == "__main__":
         return constraint_list
     
     parameters = list(detconfig["parameters"].keys())
-    constraints_ax = constraint_ax(detconfig["constraints"],parameters)
+    # no constraints used currently
+    # constraints_ax = constraint_ax(detconfig["constraints"],parameters)
 
-    # create search space with linear constraints
+    # create search space with[out] linear constraints
     search_space = SearchSpace(
         parameters=[
             RangeParameter(name=i,
                            lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
-                           parameter_type=ParameterType.FLOAT)
-            for i in detconfig["parameters"]],
-        parameter_constraints=constraints_ax        
-    )
+                           parameter_type=ParameterType.INT if i == 2 else ParameterType.FLOAT)
+            for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
-    # first test: nsigma pi-K separation at two momentum values
-    names = ["piKsep_plow",
-             "piKsep_phigh",
-             "acceptance"
+    # first test: mu-pi separation at two momentum values
+    names = ["mu_pi_sep_plow",
+             "mu_pi_sep_phigh",
+             "outer_radius"
              ]  
     metrics = []
     
     for name in names:
-        metrics.append(
-            SlurmJobMetric(
-                name=name, lower_is_better=False
-            )
+        if name == 'outer_radius':
+            metrics.append(SlurmJobMetric(name=name, lower_is_better=True))
+        else:
+            metrics.append(
+                SlurmJobMetric(
+                    name=name, lower_is_better=False
+                )
         )
     mo = MultiObjective(
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=2.5, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=2.5, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.7, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=0.75, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=0.75, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=5000.0, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
     # TODO: set real reference from current drich values?
-    ref_point = torch.tensor([2.5 for i in range(len(names))])
+    ref_point = torch.tensor([0.5, 0.5, 10000.0])
     N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
     N_BATCH = config["n_calls"]

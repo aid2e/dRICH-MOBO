@@ -22,9 +22,9 @@ def getPath(param, configfile):
 
 def editGeom(param, value, jobid):
     if jobid == -1:        
-        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/drich.xml")
+        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/klmws.xml")
     else:
-        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/drich_{}.xml".format(jobid))        
+        xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/klmws_{}.xml".format(jobid))        
 
     tree = ET.parse(xmlfile)
     root = tree.getroot()
@@ -37,29 +37,27 @@ def editGeom(param, value, jobid):
     element = root.find(path)
     current_val = element.get(elementToEdit)
 
-    if param == "sensor_centerz":
-        element.set(elementToEdit,"{}*{} - DRICH_zmin".format(value,units))
+    if units != '':
+        element.set(elementToEdit,"{}*{}".format(value,units))        
     else:
-        if units != '':
-            element.set(elementToEdit,"{}*{}".format(value,units))        
-        else:
-            element.set(elementToEdit,"{}".format(value))
+        element.set(elementToEdit,"{}".format(value))
+    
     tree.write(xmlfile)
     return
 
 def editEPIC(xml, jobid):
     path = "${DETECTOR_PATH}/compact/pid/"
-    drich_old = "drich.xml"
-    drich_new = "drich_{}.xml".format(jobid)
+    klmws_old = "klmws.xml"
+    klmws_new = "klmws_{}.xml".format(jobid)
     tree = ET.parse(xml)
     root = tree.getroot()
 
     for element in root.findall('.//include'):
-        if element.get('ref') == str(path+drich_old):
-            element.set('ref', str(path+drich_new))
+        if element.get('ref') == str(path+klmws_old):
+            element.set('ref', str(path+klmws_new))
             tree.write(xml)
             return
-    print("failed to update to new drich geo")
+    print("failed to update to new klmws geo")
     return
     
     
@@ -68,13 +66,13 @@ def create_xml(parameters, jobid):
     epic_xml = "{}/{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'])
     epic_xml_job = "{}/{}_{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'],jobid) 
     shutil.copyfile(epic_xml, epic_xml_job)
-    #change drich.xml -> drich_{jobid}.xml
+    #change epic_klmws_only.xml -> epic_klmws_only_{jobid}.xml
     editEPIC(epic_xml_job, jobid)
     
-    #create and edit drich xml
-    drich_xml = str(os.environ['EPIC_HOME']+"/compact/pid/drich.xml")
-    drich_xml_job = str(os.environ['EPIC_HOME']+"/compact/pid/drich_{}.xml".format(jobid))
-    shutil.copyfile(drich_xml, drich_xml_job)
+    #create and edit klmws xml
+    klmws_xml = str(os.environ['EPIC_HOME']+"/compact/pid/klmws.xml")
+    klmws_xml_job = str(os.environ['EPIC_HOME']+"/compact/pid/klmws_{}.xml".format(jobid))
+    shutil.copyfile(klmws_xml, klmws_xml_job)
 
     for param in parameters:
         editGeom(param, parameters[param], jobid)

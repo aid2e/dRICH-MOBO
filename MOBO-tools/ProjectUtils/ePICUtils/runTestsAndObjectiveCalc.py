@@ -4,16 +4,16 @@ import math
 
 #NEEDS TO:
 # 1. run overlap check
-# 2. generate p/eta scan
-# 3. calculate pi-K sep
-# 4. store all relevant results in drich-mobo-out_{jobid}.txt
+# 2. generate p scan
+# 3. calculate mu-pi sep
+# 4. store all relevant results in klm-mobo-out_{jobid}.txt
 
 class SubJobManager:
-    def __init__(self, p_eta_points, n_part, job_id):
-        self.p_eta_points = p_eta_points
+    def __init__(self, p_points, n_part, job_id):
+        self.p_points = p_points
         self.n_part = n_part
         self.job_id = job_id
-        self.outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "drich-mobo-out_{}.txt".format(jobid)
+        self.outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "klm-mobo-out_{}.txt".format(jobid)
         self.slurm_job_ids = []
         
     def checkOverlap(self):
@@ -33,38 +33,34 @@ class SubJobManager:
         else:
             return -1
         return -1    
-    def makeSlurmScript(self, p_eta_point, particle):
-        p = p_eta_point[0]
-        eta_min = p_eta_point[1][0]
-        eta_max = p_eta_point[1][1]        
-        radiator = p_eta_point[2]            
-        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_{}_p_{}_eta_{}_{}.slurm".format(self.job_id,particle,p,eta_min,eta_max)
+    def makeSlurmScript(self, p_point):
+        p = p_point           
+        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_p_{}.slurm".format(self.job_id,p)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=drich-mobo\n")
+            file.write("#SBATCH --job-name=klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=2:00:00\n")
-            file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
-            file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
+            file.write("#SBATCH --output={}/klm-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
+            file.write("#SBATCH --error={}/klm-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             
-            file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} {} {} {} {} \n".format(p,eta_min,eta_max,self.n_part,radiator,self.job_id,particle))
+            file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} \n".format(p,self.n_part,self.job_id))
         return filename
     def runJobs(self):
-        for p_eta_point in self.p_eta_points:
-            for particle in ["pi+","kaon+"]:
-                slurm_file = self.makeSlurmScript(p_eta_point,particle)                
-                shellcommand = ["sbatch",slurm_file]                
-                commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
-                output = commandout.stdout.decode('utf-8')
-                line_split = output.split()
-                if len(line_split) == 4:
-                    slurm_job_id = int(line_split[3])
-                    self.slurm_job_ids.append(slurm_job_id)
-                else:
-                    #slurm job submission failed, re-submit? or just count as failed?
-                    self.slurm_job_ids.append(-1)
+        for p_point in self.p_points:
+            slurm_file = self.makeSlurmScript(p_point)                
+            shellcommand = ["sbatch",slurm_file]                
+            commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
+            output = commandout.stdout.decode('utf-8')
+            line_split = output.split()
+            if len(line_split) == 4:
+                slurm_job_id = int(line_split[3])
+                self.slurm_job_ids.append(slurm_job_id)
+            else:
+                #slurm job submission failed, re-submit? or just count as failed?
+                self.slurm_job_ids.append(-1)
         return
     
     def get_job_status(self, slurm_id):
@@ -119,46 +115,24 @@ class SubJobManager:
         # executed when we have overlaps and want to punish this result,
         # but the trial didn't exactly "fail"
         # TODO: is this how we want to treat this?
-        final_results = np.array( [0, 0, 0] )
+        # minimizing objective 3, so set to arbitrarily high value here
+        final_results = np.array( [0, 0, 99999] )
         np.savetxt(self.outname,final_results)
         return
     def retrieveResults(self):
         # when results finished, retrieve analysis script outputs
         # and calculate objectives
-        results_nsigma = []
-        results_eff = []
-        result_p = []
-        for i in range(len(self.p_eta_points)):
-            p_eta_point = self.p_eta_points[i]
-            p = p_eta_point[0]
-            eta_min = p_eta_point[1][0]
-            eta_max = p_eta_point[1][1]
-            if self.final_job_status[i] == 1:
-                K_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_kaon+_p_{}_eta_{}_{}.txt".format(self.job_id,p,eta_min,eta_max))
-                pi_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_pi+_p_{}_eta_{}_{}.txt".format(self.job_id,p,eta_min,eta_max))
-                mean_nphot = (pi_plus_cher[0] + K_plus_cher[0])/2
-                mean_sigma = (pi_plus_cher[2] + K_plus_cher[2])/2
-                #calculate nsigma separation 
-                if mean_sigma != 0:
-                    nsigma = (abs(pi_plus_cher[1] - K_plus_cher[1])*math.sqrt(mean_nphot))/mean_sigma
-                else:
-                    nsigma = 0
-                #get mean fraction of tracks with reco photons
-                mean_eff = (pi_plus_cher[3] + K_plus_cher[3])/2
-                results_nsigma.append(nsigma)
-                results_eff.append(mean_eff)
-                result_p.append(p)
-        # mean to reduce to 2 momentum points
-        # TODO: write a function to do this based on some weighting from physics multiplicities
-        result_p = np.array(result_p)
-        results_nsigma = np.array(results_nsigma)
-        results_eff = np.array(results_eff)
+        results_roc_score = []
+        results_r_out = []
         
-        if np.sum(result_p==15) > 0 and np.sum(result_p==40) > 0:
-            final_results = np.array( [ np.mean( results_nsigma[np.where(result_p==15)] ),
-                                        np.mean( results_nsigma[np.where(result_p==40)] ),
-                                        np.mean( results_eff ) 
-                                       ] )
+        for p_point in self.p_points:
+            if self.final_job_status[i] == 1:
+                objectives_list = np.loadtxt(os.path.join(os.environ['AIDE_HOME'], f'log/results/objectives_{self.job_id}_p_{p_point}.txt'))
+                results_roc_score.append(objectives_list[0])
+                results_r_out.append(objectives_list[1])
+        
+        if len(results_roc_score) == len(self.p_points) and len(results_r_out) == len(self.p_points):
+            final_results = np.array(results_roc_score[0], results_roc_score[1], np.mean(results_r_out))
         else:
             # if all jobs failed for a momentum point, exit failed
             # TODO: is this how we want to treat this case?
@@ -168,29 +142,22 @@ class SubJobManager:
 
 nobj = 6
 npart = 100
-p_eta_scan = [
-    [15, [1.3,2.0], 0],
-    [15, [2.0,2.5], 0],
-    [15, [2.5,3.5], 0],
-    [40, [1.3,2.0], 1],
-    [40, [2.0,2.5], 1],
-    [40, [2.5,3.5], 1]
-]
+p_scan = [1, 10]
 
 jobid = sys.argv[1]
 
-manager = SubJobManager(p_eta_scan, npart, jobid)
+manager = SubJobManager(p_scan, npart, jobid)
 noverlaps = manager.checkOverlap()
 
 if noverlaps != 0:
     # OVERLAP OR ERROR, return -1 for all objectives
     print(noverlaps, " overlaps found, exiting trial")
-    results = np.array( [-1 for i in range(len(p_eta_scan))] )
+    results = np.array( [-1 for i in range(len(p_scan))] )
     np.savetxt(manager.outname,results)
     manager.writeFailedObjectives()
     sys.exit(0)
 
-print("no overlaps, starting momentum/eta scan jobs")
+print("no overlaps, starting momentum scan jobs")
 
 manager.runJobs()
 manager.monitorJobs()

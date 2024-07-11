@@ -17,21 +17,21 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["piKsep_plow",
-                  "piKsep_phigh",
-                  "acceptance"
+    objectives = ["mu_pi_sep_plow",
+                  "mu_pi_sep_phigh",
+                  "outer_radius"
                   ]
     
     def submit_slurm_job(self, jobnum):
         with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=drich-mobo\n")
+            file.write("#SBATCH --job-name=klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write("#SBATCH --output=drich-mobo_%j.out\n")
-            file.write("#SBATCH --error=drich-mobo_%j.err\n")
+            file.write("#SBATCH --output=klm-mobo_%j.out\n")
+            file.write("#SBATCH --error=klm-mobo_%j.err\n")
             
             file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
 
@@ -91,7 +91,7 @@ class SlurmQueueClient:
     def get_outcome_value_for_completed_job(self, jobid):
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
-        results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "drich-mobo-out_{}.txt".format(jobid))
+        results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "klm-mobo-out_{}.txt".format(jobid))
         if len(self.objectives) > 1:            
             results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
         else:

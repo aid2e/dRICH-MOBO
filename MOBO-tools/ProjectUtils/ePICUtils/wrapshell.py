@@ -3,8 +3,8 @@ import xml.etree.ElementTree as ET
 import sys
 import subprocess
 
-def piKsep(momentum, npart, radiator):
-    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/shell_wrapper.sh", str(momentum), str(1.5), str(3.5), str(npart), str(radiator)]
+def mu_pi_sep(momentum, npart):
+    shellcommand = [os.environ["EPIC_MOBO_UTILS"]+"/shell_wrapper.sh", str(momentum), str(npart)]
 
     commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
     output = commandout.stdout.decode('utf-8')

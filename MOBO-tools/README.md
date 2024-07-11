@@ -8,10 +8,6 @@ Dependencies from ../conda_requirements.txt or ../pip_requirements.txt should be
 
 If this is your first time installing this repo:
 - Follow build instructions in 'epic' to build the ePIC geometry within eic-shell (will only need built once, as geometry editing currently only requires changing the xml files)
-- Build the dRICH analysis script within eic-shell: 
-    - ```./eic-shell ```
-    - ```cd ProjectUtils/ePICUtils```
-    - ```make```
 
 **Running MOBO wrapper**
 

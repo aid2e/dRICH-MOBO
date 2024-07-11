@@ -1,0 +1,4 @@
+MOBO-tools/eic-shell
+MOBO-tools/local/
+MOBO-tools/epic_klm/
+*.ipynb_checkpoints

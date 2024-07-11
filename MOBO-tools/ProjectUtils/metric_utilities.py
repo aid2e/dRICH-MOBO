@@ -20,12 +20,7 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
                 trial.run_metadata.get("job_id")
             )
             #TODO: get real uncertainty/noise estimate
-            if "piKsep" in self.name:
-                sem = 0.1
-            elif self.name=="acceptance":
-                sem = 0.05
-            else:
-                sem = 0.1
+            sem = 0.0
             df_dict = {
                 "trial_index": trial.index,
                 "metric_name": self.name,
