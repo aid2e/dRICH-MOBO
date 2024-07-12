@@ -12,7 +12,9 @@ If this is your first time installing this repo:
 **Running MOBO wrapper**
 
 The current MOBO wrapper script can be run using 
-```python wrapper_slurm_basic.py -c optimize.config -d parameters.config```
+- ```./eic-shell```
+- ```source setup.sh```
+- ```python wrapper_slurm_basic.py -c optimize.config -d parameters.config```
 
 Currently, this by default utilizes a slurm trial scheduler which will submit each trial as a slurm job, with each simulation point carried out in additional slurm jobs (configured for the Duke compute cluster, but partitions etc. can be edited to reflect any other cluster in ProjectUtils/slurm_utilities.py and ProjectUtils/ePICUtils/runTestsAndObjectiveCalc.py). joblib and PanDA/iDDS wrappers will be under development.
 
