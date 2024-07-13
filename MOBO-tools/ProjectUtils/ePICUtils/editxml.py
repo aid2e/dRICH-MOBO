@@ -37,7 +37,10 @@ def editGeom(param, value, jobid):
     element = root.find(path)
     current_val = element.get(elementToEdit)
 
-    if units != '':
+    if param == 'num_layers':
+        # num_layers only takes on integer values
+        element.set(elementToEdit,"{}".format(int(value)))
+    elif units != '':
         element.set(elementToEdit,"{}*{}".format(value,units))        
     else:
         element.set(elementToEdit,"{}".format(value))
