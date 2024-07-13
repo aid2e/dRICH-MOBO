@@ -20,7 +20,8 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
                 trial.run_metadata.get("job_id")
             )
             #TODO: get real uncertainty/noise estimate
-            sem = 0.0
+            #Set sem to None for now to let ax infer it
+            sem = None
             df_dict = {
                 "trial_index": trial.index,
                 "metric_name": self.name,
