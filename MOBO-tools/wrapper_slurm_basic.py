@@ -139,7 +139,7 @@ if __name__ == "__main__":
         parameters=[
             RangeParameter(name=i,
                            lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
-                           parameter_type=ParameterType.INT if i == 2 else ParameterType.FLOAT)
+                           parameter_type=ParameterType.INT if i == "num_layers" else ParameterType.FLOAT)
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
     # first test: mu-pi separation at two momentum values
