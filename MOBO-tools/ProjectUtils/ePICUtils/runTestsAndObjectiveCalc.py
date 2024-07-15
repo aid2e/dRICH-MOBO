@@ -132,7 +132,7 @@ class SubJobManager:
                 results_r_out.append(objectives_list[1])
         
         if len(results_roc_score) == len(self.p_points) and len(results_r_out) == len(self.p_points):
-            final_results = np.array(results_roc_score[0], results_roc_score[1], np.mean(results_r_out))
+            final_results = np.array([results_roc_score[0], results_roc_score[1], np.mean(results_r_out)])
         else:
             # if all jobs failed for a momentum point, exit failed
             # TODO: is this how we want to treat this case?
@@ -143,6 +143,10 @@ class SubJobManager:
 nobj = 6
 npart = 100
 p_scan = [1, 10]
+
+# format momenta into strings
+for i, p in enumerate(p_scan):
+    p_scan[i] = str(int(p)) if type(p) == int or p.is_integer() else str(p)
 
 jobid = sys.argv[1]
 
