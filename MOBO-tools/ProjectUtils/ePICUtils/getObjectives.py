@@ -59,7 +59,7 @@ def layer_num(xpos, ypos):
 
 # returns the number of pixels detected by a hit
 def pixel_num(energy_dep, zpos):
-    inverse = lambda x : 494.98 / (29.9733 - x + barrel_length / 2) - 0.16796
+    inverse = lambda x : 4.9498 / (29.9733 - x + barrel_length / 2) - 0.0016796
     efficiency = inverse(zpos - barrel_offset) + inverse(barrel_offset - zpos) # ratio of photons produced in a hit that make it to the sensor
     return 10 * energy_dep * (1000 * 1000) * efficiency
 
