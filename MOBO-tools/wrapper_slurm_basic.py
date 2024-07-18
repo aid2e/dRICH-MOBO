@@ -12,6 +12,7 @@ import numpy as np
 from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df
 from ax.storage.json_store.save import save_experiment
+from ax.storage.registry_bundle import RegistryBundle
 
 # Model registry for creating multi-objective optimization models.
 from ax.modelbridge.registry import Models
@@ -164,13 +165,13 @@ if __name__ == "__main__":
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=0.75, relative=False),
         ObjectiveThreshold(metric=metrics[1], bound=0.75, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=5000.0, relative=False)
+        ObjectiveThreshold(metric=metrics[2], bound=3500.0, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
     # TODO: set real reference from current drich values?
-    ref_point = torch.tensor([0.5, 0.5, 10000.0])
+    # ref_point = torch.tensor([0.5, 0.5, 10000.0])
     N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
     N_BATCH = config["n_calls"]
@@ -228,5 +229,16 @@ if __name__ == "__main__":
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv("test_scheduler_df.csv")
-    save_experiment(experiment,"test_scheduler_experiment.json")
     
+    # register custom metric and runner with json encoder
+    bundle = RegistryBundle(
+        metric_clss={SlurmJobMetric: None},
+        runner_clss={SlurmJobRunner: None}
+    )
+
+    save_experiment(
+        experiment=experiment,
+        filepath='test_scheduler_experiment.json',
+        encoder_registry=bundle.encoder_registry,
+        class_encoder_registry=bundle.class_encoder_registry,
+    )

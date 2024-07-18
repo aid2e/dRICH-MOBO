@@ -33,7 +33,7 @@ class SlurmQueueClient:
             file.write("#SBATCH --output=klm-mobo_%j.out\n")
             file.write("#SBATCH --error=klm-mobo_%j.err\n")
             
-            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
+            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"runTestsAndObjectiveCalc.py {} \n".format(jobnum))
 
         shellcommand = ["sbatch","jobconfig_{}.slurm".format(jobnum)]        
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
