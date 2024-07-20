@@ -1,6 +1,6 @@
 **Setup instructions** 
 
-Dependencies from ../conda_requirements.txt or ../pip_requirements.txt should be installed (ported from Closure-test 1).
+Dependencies from ```../environment.yml``` should be installed into a conda environment named ```mobo```.
 
 ```source setup.sh``` will set needed environment variables and check if [eic/epic](https://github.com/eic/epic/tree/main) and 'eic-shell' are installed in this directory. If not, they will be cloned/downloaded.
 
@@ -12,9 +12,7 @@ If this is your first time installing this repo:
 **Running MOBO wrapper**
 
 The current MOBO wrapper script can be run using 
-- ```./eic-shell```
-- ```source setup.sh```
-- ```python wrapper_slurm_basic.py -c optimize.config -d parameters.config```
+- ```source run_optimization.sh```
 
 Currently, this by default utilizes a slurm trial scheduler which will submit each trial as a slurm job, with each simulation point carried out in additional slurm jobs (configured for the Duke compute cluster, but partitions etc. can be edited to reflect any other cluster in ProjectUtils/slurm_utilities.py and ProjectUtils/ePICUtils/runTestsAndObjectiveCalc.py). joblib and PanDA/iDDS wrappers will be under development.
 
