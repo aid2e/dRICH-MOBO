@@ -27,7 +27,8 @@ class SlurmQueueClient:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=vossenlab-gpu\n")
+            file.write("#SBATCH --nodelist=dcc-vossenlab-gpu-02\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write("#SBATCH --output=klm-mobo_%j.out\n")
