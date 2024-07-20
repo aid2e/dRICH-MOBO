@@ -163,9 +163,9 @@ if __name__ == "__main__":
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=0.75, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=0.75, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=3500.0, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=0.85, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=0.85, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=3200.0, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)

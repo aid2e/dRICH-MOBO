@@ -259,7 +259,7 @@ class SubJobManager:
 if __name__ == '__main__':
 
     npart = 250
-    p_scan = [0.5, 3]
+    p_scan = [1, 5]
 
     # format momenta into strings
     for i, p in enumerate(p_scan):

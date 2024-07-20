@@ -4,7 +4,7 @@
 EPIC_DIR=$(pwd)/epic_klm/
 if [ ! -d "$EPIC_DIR" ]; then
     echo "local ePIC source code not found, downloading"
-    git clone -b one_sector https://github.com/simons27/epic_klm.git
+    git clone -b one_sector_solenoid https://github.com/simons27/epic_klm.git
     EPIC_DIR=$(pwd)/epic_klm/
 else
     echo "ePIC geometry source code found"
@@ -23,7 +23,7 @@ export EIC_SHELL_HOME=$EIC_SHELL_DIR
 export EPIC_HOME=$EPIC_DIR
 
 export DETECTOR_PATH=$EPIC_HOME
-export DETECTOR_CONFIG=epic_klmws_only
+export DETECTOR_CONFIG=epic_klmws_w_solenoid
 
 export EPIC_MOBO_UTILS=$(pwd)/ProjectUtils/ePICUtils/
 export AIDE_HOME=$(pwd)
