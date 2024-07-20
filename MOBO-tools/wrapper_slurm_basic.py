@@ -198,8 +198,8 @@ if __name__ == "__main__":
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
-                num_trials=35,
-                min_trials_observed=30,
+                num_trials=15,
+                min_trials_observed=12,
                 max_parallelism=5
             ),
             GenerationStep(
@@ -211,7 +211,8 @@ if __name__ == "__main__":
                                                         },
                                            ),
                     "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,
-                    "refit_on_update": True,
+                    # deprecated after ax-platform==0.4.0
+                    # "refit_on_update": True,
                     "refit_on_cv": True,
                     "warm_start_refit": True
                 },
