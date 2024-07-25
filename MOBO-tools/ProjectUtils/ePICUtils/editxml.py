@@ -36,9 +36,9 @@ def editGeom(param, value, jobid):
         print("ERROR: element path not found/defined")
     element = root.find(path)
     current_val = element.get(elementToEdit)
-
+    
     if param == "sensor_centerz":
-        element.set(elementToEdit,"{}*{} - DRICH_zmin".format(value,units))
+        element.set(elementToEdit,"{}*{} - DRICH_zmin + 238*cm".format(value,units))
     else:
         if units != '':
             element.set(elementToEdit,"{}*{}".format(value,units))        
@@ -48,10 +48,10 @@ def editGeom(param, value, jobid):
         if ("radius" in param) and ("mirror" in param):
             # set center z based on mirror radius
             z_path = path.replace('radius','centerz')
-            z_element = root.find(centerz_path)
+            z_element = root.find(z_path)
             z_elementToEdit = elementToEdit.replace('radius','centerz')
             # fix position to drich backplane
-            z_element.set(z_elementToEdit,"{}*{}".format(312 - value, units))
+            z_element.set(z_elementToEdit,"{}*{}".format(311 - value, units))
     tree.write(xmlfile)
     return
 
@@ -73,6 +73,7 @@ def editEPIC(xml, jobid):
     
 def create_xml(parameters, jobid):
     #create new epic xml
+    print("creating xmls ", jobid)
     epic_xml = "{}/{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'])
     epic_xml_job = "{}/{}_{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'],jobid) 
     shutil.copyfile(epic_xml, epic_xml_job)
@@ -85,7 +86,10 @@ def create_xml(parameters, jobid):
     shutil.copyfile(drich_xml, drich_xml_job)
 
     for param in parameters:
-        editGeom(param, parameters[param], jobid)
+        if param == "sensor_centerz":
+            editGeom(param, parameters[param] - parameters["sensor_radius"], jobid)
+        else:
+            editGeom(param, parameters[param], jobid)            
     return
 
     
