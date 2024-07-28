@@ -116,13 +116,7 @@ class SubJobManager:
         return
     
     def writeFailedObjectives(self):
-        # executed when we have overlaps and want to punish this result,
-        # but the trial didn't exactly "fail"
-        # TODO: is this how we want to treat this?
-        # minimizing objective 3, so set to arbitrarily high value here
-        final_results = np.array( [0, 0, 99999] )
-        np.savetxt(self.outname,final_results)
-        return
+        raise Exception("Writing failed objectives error")
     
     def retrieveResults(self):
         # when results finished, retrieve analysis script outputs
@@ -273,8 +267,8 @@ if __name__ == '__main__':
     if noverlaps != 0:
         # OVERLAP OR ERROR, return -1 for all objectives
         print(noverlaps, " overlaps found, exiting trial")
-        results = np.array( [-1 for i in range(len(p_scan))] )
-        np.savetxt(manager.outname,results)
+        # results = np.array( [-1 for i in range(len(p_scan))] )
+        # np.savetxt(manager.outname,results)
         manager.writeFailedObjectives()
         sys.exit(0)
 
