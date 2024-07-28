@@ -236,10 +236,14 @@ if __name__ == "__main__":
         metric_clss={SlurmJobMetric: None},
         runner_clss={SlurmJobRunner: None}
     )
+    
+    # export generation strategy model pkl file
+    with open('gs_model.pkl', 'wb') as file:
+        pickle.dump(gen_strategy.model, file)
 
+    # export experiment json file
     save_experiment(
         experiment=experiment,
         filepath='test_scheduler_experiment.json',
-        encoder_registry=bundle.encoder_registry,
-        class_encoder_registry=bundle.class_encoder_registry,
+        encoder_registry=bundle.encoder_registry
     )
