@@ -102,11 +102,12 @@ def build_experiment(search_space,optimization_config):
         runner=SyntheticRunner(),
     )
     return experiment
-def build_experiment_slurm(search_space,optimization_config,runner):
+def build_experiment_slurm(search_space,optimization_config,status_quo,runner):
     experiment = Experiment(
         name="pareto_experiment",
         search_space=search_space,
         optimization_config=optimization_config,
+        status_quo=status_quo,
         runner=runner
     )
     return experiment

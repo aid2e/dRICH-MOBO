@@ -170,8 +170,12 @@ if __name__ == "__main__":
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
-    # TODO: set real reference from current drich values?
-    # ref_point = torch.tensor([0.5, 0.5, 10000.0])
+    # arm containing nominal design parameters to compare optimization points to
+    status_quo_arm = Arm(
+                    parameters={param : int(detconfig["parameters"][param]["default"]) if param=="num_layers" else float(detconfig["parameters"][param]["default"]) for param in detconfig["parameters"]},
+                    name="status_quo"
+            )
+    
     N_INIT = config["n_initial_points"]
     BATCH_SIZE = config["n_batch"]
     N_BATCH = config["n_calls"]
@@ -192,7 +196,12 @@ if __name__ == "__main__":
     start_tot = time.time()
     
     #experiment with custom slurm runner
-    experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
+    experiment = build_experiment_slurm(
+        search_space=search_space,
+        optimization_config=optimization_config,
+        status_quo=status_quo_arm,
+        runner=SlurmJobRunner()
+    )
     
     gen_strategy = GenerationStrategy(
         steps=[
@@ -220,6 +229,27 @@ if __name__ == "__main__":
             ),
         ]
     )
+    
+    # pre-calculated objective metric values for nominal design
+    status_quo_metric_vals = [0.8990445650853882, 0.9076645164516451, 2843.8]
+    status_quo_data = Data(df=pd.DataFrame.from_records(
+        [
+            {
+                "arm_name": "status_quo",
+                "metric_name": names[i],
+                "mean": metric_val,
+                "sem": None,
+                "trial_index": 0
+            }
+            for i, metric_val in enumerate(status_quo_metric_vals)
+        ]
+    ))
+
+    # add data for status quo
+    status_quo_trial = experiment.new_trial()
+    status_quo_trial.add_arm(status_quo_arm)
+    experiment.attach_data(status_quo_data)
+    status_quo_trial.run().complete()
     
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,

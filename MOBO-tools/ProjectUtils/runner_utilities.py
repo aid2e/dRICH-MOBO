@@ -10,6 +10,10 @@ class SlurmJobRunner(Runner):  # Deploys trials to external system.
     def run(self, trial: BaseTrial):
         if not isinstance(trial, BaseTrial):
             raise ValueError("This runner only handles `BaseTrial`.")
+        
+        # don't run a slurm job for the status quo trial
+        if trial.index == 0:
+            return {"job_id": 0}
 
         slurm_job_queue = get_slurm_queue_client()        
         return_job_id = []
