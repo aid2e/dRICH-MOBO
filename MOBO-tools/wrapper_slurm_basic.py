@@ -11,7 +11,6 @@ import numpy as np
 
 from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df
-from ax.storage.json_store.save import save_experiment
 
 # Model registry for creating multi-objective optimization models.
 from ax.modelbridge.registry import Models
@@ -33,6 +32,7 @@ from ax.modelbridge.registry import Models
 from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
+from ax.modelbridge.modelbridge_utils import observed_hypervolume
 from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
 from ax.models.torch.botorch_modular.surrogate import Surrogate
 from ax.models.torch.botorch_modular.model import BoTorchModel
@@ -44,8 +44,21 @@ from botorch.acquisition.multi_objective.monte_carlo import (
     qNoisyExpectedHypervolumeImprovement,
 )
 
-# for json storage of experiment
+# for sql storage of experiment
+from ax.storage.metric_registry import register_metric
+from ax.storage.runner_registry import register_runner
+
 from ax.storage.registry_bundle import RegistryBundle
+from ax.storage.sqa_store.db import (
+    create_all_tables,
+    get_engine,
+    init_engine_and_session_factory,
+)
+from ax.storage.sqa_store.decoder import Decoder
+from ax.storage.sqa_store.encoder import Encoder
+from ax.storage.sqa_store.sqa_config import SQAConfig
+from ax.storage.sqa_store.structs import DBSettings
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -84,17 +97,6 @@ if __name__ == "__main__":
         "dtype": torch.double, 
         "device": torch.device("cuda" if isGPU else "cpu"),
     }
-    with open(os.path.join(outdir, optimInfo), "w") as f:
-        f.write("Optimization Info with name : " + config["name"] + "\n")
-        f.write("Optimization has " + str(config["n_objectives"]) + " objectives\n")
-        f.write("Optimization has " + str(config["n_design_params"]) + " design parameters\n")
-        f.write("Optimization Info with description : " + config["description"] + "\n")
-        f.write("Starting optimization at " + str(datetime.datetime.now()) + "\n")
-        f.write(f"Optimization is running on {os.uname().nodename}\n")
-        f.write("Optimization description : " + config["description"] + "\n")
-        if(isGPU):
-            f.write("Optimization is running on GPU : " + torch.cuda.get_device_name() + "\n")
-    print ("Running on GPU? ", isGPU)
     
     print(detconfig["parameters"])
 
@@ -115,7 +117,7 @@ if __name__ == "__main__":
             A[i][constraints[i][1]] = constraints[i][3]
             b[i] = constraints[i][4]
         return [A, b]
-
+    
     # creates linear constraint to pass to ax SearchSpace
     # based on list of parameters with weights given in --detparameters.
     # constraints pass if output < 0
@@ -143,12 +145,13 @@ if __name__ == "__main__":
             RangeParameter(name=i,
                            lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
                            parameter_type=ParameterType.FLOAT)
-            for i in detconfig["parameters"]],
-        parameter_constraints=constraints_ax        
+            for i in detconfig["parameters"]]
+        #,
+        # FOR NOW, reparamterized so no constraints on dRICH geometry
+        #parameter_constraints=constraints_ax        
     )
-    print("made search space")
-    # first test: nsigma pi-K separation at two momentum values
-    names = ["piKsep_etalow",
+
+    names = ["piKsep_etalow",            
              "piKsep_etahigh",
              "acceptance"
              ]  
@@ -163,49 +166,61 @@ if __name__ == "__main__":
     mo = MultiObjective(
         objectives=[Objective(m) for m in metrics],
         )
+    # 10% below what would be acceptable design
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=2.5, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=2.5, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.7, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=2.7, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=2.7, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
-    # TODO: set real reference from current drich values?
-    ref_point = torch.tensor([2.5, 2.5, 0.7])
-    N_INIT = config["n_initial_points"]
-    BATCH_SIZE = config["n_batch"]
-    N_BATCH = config["n_calls"]
+    #TODO: implement check of dominated HV convergence instead of
+    #fixed N points
+    BATCH_SIZE_SOBOL = config["n_batch_sobol"]
+    BATCH_SIZE_MOBO = config["n_batch_mobo"]
+    N_SOBOL = config["n_sobol"]
+    N_MOBO = config["n_mobo"]
+    N_TOTAL = N_SOBOL + N_MOBO
+    if (N_MOBO == -1) or (N_SOBOL==-1):
+        N_TOTAL+=1
+    print("running ", N_TOTAL, " trials")
+    outname = config["OUTPUT_NAME"]
+    #N_BATCH = config["n_calls"]
     num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
     warmup_steps = 128 if (not config.get("MOBO_params")) else config["MOBO_params"]["warmup_steps"]
     
-    hv_list = []
-    time_gen = []
-    time_mcmc = []
-    time_hv = []
-    time_tot = []
-    time_trail = []
-    converged_list = []
-    hv = 0.0
-    model = None
-    last_call = 0
-    
-    start_tot = time.time()
+    # set up sql storage
+    register_metric(SlurmJobMetric)
+    register_runner(SlurmJobRunner)
+
+    bundle = RegistryBundle(
+        metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
+    )
+    db_settings = DBSettings(
+        url="sqlite:///{}.db".format(outname),
+        encoder=bundle.encoder,
+        decoder=bundle.decoder
+    )
+    init_engine_and_session_factory(url=db_settings.url)
+    engine = get_engine()
+    create_all_tables(engine)
     
     #experiment with custom slurm runner
     experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
-    print("made experiment")
+
     gen_strategy = GenerationStrategy(
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
-                num_trials=5,
-                min_trials_observed=5,
-                max_parallelism=5
+                num_trials=N_SOBOL,
+                min_trials_observed=N_SOBOL,
+                max_parallelism=BATCH_SIZE_SOBOL,
+                model_kwargs={"seed": 999}
             ),
             GenerationStep(
                 model=Models.BOTORCH_MODULAR,            
-                num_trials=-1,
+                num_trials=N_MOBO,
                 model_kwargs={  # args for BoTorchModel
                     "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,
                                            mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
@@ -216,25 +231,25 @@ if __name__ == "__main__":
                     "refit_on_cv": True,
                     "warm_start_refit": True
                 },
-                max_parallelism=5
+                max_parallelism=BATCH_SIZE_MOBO
             ),
         ]
     )
     
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
-                          options=SchedulerOptions())
-    print("running BoTorch trials")
-    scheduler.run_n_trials(max_trials=N_BATCH)
+                          options=SchedulerOptions(),
+                          db_settings=db_settings)
+
+    scheduler.run_n_trials(max_trials=N_TOTAL)
+
+    model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
+
+    # TODO: check for HV convergence
+    hv = observed_hypervolume(modelbridge=model_obj)
+    
     
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
-    exp_df.to_csv("dualmirror_df.csv")
+    exp_df.to_csv(outname+".csv")
 
-    bundle = RegistryBundle(
-        metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
-    )
-    save_experiment(experiment=experiment,
-                    filepath="dualmirror_experiment.json",
-                    encoder_registry=bundle.encoder_registry)
-    
