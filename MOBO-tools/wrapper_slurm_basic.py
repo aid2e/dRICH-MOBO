@@ -144,8 +144,8 @@ if __name__ == "__main__":
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
     # first test: mu-pi separation at two momentum values
-    names = ["mu_pi_sep_plow",
-             "mu_pi_sep_phigh",
+    names = ["sepMuPi_1GeV",
+             "sepMuPi_5GeV",
              "outer_radius"
              ]  
     metrics = []
