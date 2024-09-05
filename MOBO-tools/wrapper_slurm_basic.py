@@ -168,9 +168,9 @@ if __name__ == "__main__":
         )
     # 10% below what would be acceptable design
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=2.7, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=2.7, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=2.9, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=3.8, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=0.75, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
@@ -220,7 +220,7 @@ if __name__ == "__main__":
             ),
             GenerationStep(
                 model=Models.BOTORCH_MODULAR,            
-                num_trials=N_MOBO,
+                num_trials=-1,
                 model_kwargs={  # args for BoTorchModel
                     "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,
                                            mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
@@ -238,7 +238,9 @@ if __name__ == "__main__":
     
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
-                          options=SchedulerOptions(),
+                          options=SchedulerOptions(init_seconds_between_polls=10,
+                                                   seconds_between_polls_backoff_factor=1,
+                                                   min_failed_trials_for_failure_rate_check=2),
                           db_settings=db_settings)
 
     scheduler.run_n_trials(max_trials=N_TOTAL)
