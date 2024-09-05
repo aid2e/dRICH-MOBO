@@ -85,6 +85,8 @@ class SlurmQueueClient:
             return TrialStatus.RUNNING
         elif status == "1":
             return TrialStatus.COMPLETED
+        elif status == "-2":
+            return TrialStatus.EARLY_STOPPED
         elif status == "-1":
             return TrialStatus.FAILED
         
