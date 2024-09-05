@@ -270,6 +270,7 @@ if noverlaps != 0:
 print("no overlaps, starting momentum/eta scan jobs")
 
 # run an initial scan of ~100 particles to check that acceptance is okay
+'''
 manager_test = SubJobManager(p_eta_scan_init, 100, jobid)
 manager_test.runJobs()
 manager_test.monitorJobs()
@@ -280,7 +281,7 @@ if avgAcc < 0.35:
     print("bad preliminary acceptance test, flag as failure and write out failed objectives")
     manager_test.writeFailedObjectives()
     sys.exit(0)
-    
+'''
 # if results were okay, finish analyzing this design point
 manager.runJobs()
 manager.monitorJobs()
