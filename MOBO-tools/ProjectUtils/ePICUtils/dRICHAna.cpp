@@ -81,23 +81,24 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 	  // if no photons, consider this to be missed
 	  continue;
 	}
+	if(nPhotons > 5){
+	  ndRICHDet += 1.; // if > 5 photons, consider this to be accepted
+	}
 	
-	ndRICHDet += 1.; // if some photons, consider to be seen by dRICH (cut at ~3 photons? noise?)
-	hnPhotons->Fill(nPhotons);
-	
+	hnPhotons->Fill(nPhotons);	
 	for(int k = 0; k < thetaPhi.size(); k++){
-	  hSingleThetaError->Fill(thetaPhi[k][0]*1000 - chExpected);
+	  hSingleThetaError->Fill(abs(thetaPhi[k][0]*1000 - chExpected));
 	  hSingleTheta->Fill(thetaPhi[k][0]*1000);
 	}
       }      
     }       
   }
 
-  double mean = hSingleThetaError->GetMean();
-  double rms = hSingleThetaError->GetRMS();
+  //double mean = hSingleThetaError->GetMean();
+  //double rms = hSingleThetaError->GetRMS();
   
-  TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
-  hSingleThetaError->Fit("gaussianFit","R");
+  //TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
+  //hSingleThetaError->Fit("gaussianFit","R");
   TCanvas *c = new TCanvas();
   hSingleTheta->Draw();
   c->SaveAs("spetest.png");
@@ -108,7 +109,8 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   
   fprintf(outfile, "%lf %lf %lf %lf \n",
 	  hnPhotons->GetMean(), hSingleTheta->GetMean(),
-	  f1->GetParameter(2),
+	  hSingleThetaError->GetMean(), // MAE
+	  //f1->GetParameter(2),
 	  ndRICHDet/nThrown);
   
   return;

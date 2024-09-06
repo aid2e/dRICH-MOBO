@@ -17,8 +17,8 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["piKsep_plow",
-                  "piKsep_phigh",
+    objectives = ["piKsep_etalow",
+                  "piKsep_etahigh",
                   "acceptance"
                   ]
     
@@ -27,14 +27,16 @@ class SlurmQueueClient:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=drich-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
+            #file.write("#SBATCH --partition=vossenlab-gpu")
+            #file.write("#SBATCH --nodelist=dcc-vossenlab-gpu-01")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write("#SBATCH --output=drich-mobo_%j.out\n")
-            file.write("#SBATCH --error=drich-mobo_%j.err\n")
+            file.write("#SBATCH --time=4:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
+            file.write("#SBATCH --output=/hpc/group/vossenlab/cmp115/AIDE/dRICH-MOBO/MOBO-tools/log/job_output/drich-mobo_%j.out\n")
+            file.write("#SBATCH --error=/hpc/group/vossenlab/cmp115/AIDE/dRICH-MOBO/MOBO-tools/log/job_output/drich-mobo_%j.err\n")
             
-            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
-
+            file.write("python3.9 " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
+        print("starting slurm job ", jobnum)
         shellcommand = ["sbatch","jobconfig_{}.slurm".format(jobnum)]        
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
@@ -83,6 +85,8 @@ class SlurmQueueClient:
             return TrialStatus.RUNNING
         elif status == "1":
             return TrialStatus.COMPLETED
+        elif status == "-2":
+            return TrialStatus.EARLY_STOPPED
         elif status == "-1":
             return TrialStatus.FAILED
         
@@ -93,7 +97,7 @@ class SlurmQueueClient:
         ### HERE: load results from text file, formatted based on job id
         results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "drich-mobo-out_{}.txt".format(jobid))
         if len(self.objectives) > 1:            
-            results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
+            results_dict = {self.objectives[i]:[results[2*i],results[2*i+1]] for i in range(len(self.objectives))}
         else:
             results_dict = {self.objectives[0]:results}
         return results_dict
