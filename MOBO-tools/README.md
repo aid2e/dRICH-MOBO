@@ -12,6 +12,8 @@ The following repositories/branches hold the current geometry used for the optim
 - ePIC (fork): ``` git clone -b 24.07.0-drich-3mirror https://github.com/cpecar/epic-geom-drich-mobo.git ```
 - IRT: ``` git clone -b multi-mirror-irt https://github.com/eic/irt.git ```
 
+The EICrecon and ePIC forks contain branches for 2 mirror and 3 mirror implementations of the dRICH geometry and reconstruction. The 2 mirror implementations are on the branches 'v1.15-drich-2mirror' for EICrecon and '24.07.0-drich-2mirror' for ePIC.
+
 These can each be built using the `build_*.sh` scripts from **within eic-shell**, and the build location should be set to $EIC_SOFTWARE (required for ensuring EICrecon loads the correct irt version).
 
 Additionally, the dRICH analysis script will need to be built from within eic-shell prior to running the optimization, which can be done via `cd ProjectUtils/ePICUtils/ && make`.
