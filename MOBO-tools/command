@@ -1,0 +1,8 @@
+
+ rm -fr drich_3mirror_3obj_secondopt.db
+# python wrapper_panda_idds.py -c optimize.config -d parameters.config --backend local
+# python wrapper_panda_idds.py -c optimize_dev.config -d parameters.config --backend local
+# python wrapper_panda_idds.py -c optimize_dev.config -d parameters.config --backend panda
+# python wrapper_panda_idds.py -c optimize.config -d parameters.config --backend panda
+python wrapper_panda_idds.py -c optimize_big.config -d parameters.config --backend panda
+
