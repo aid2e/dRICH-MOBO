@@ -2,7 +2,7 @@ import os, sys, subprocess
 import numpy as np
 from ax.core.base_trial import TrialStatus
 from time import time
-from ProjectUtils.ePICUtils.editxml import create_xml
+from ProjectUtils.edittextfile import *
 
 from typing import Any, Dict, NamedTuple, Union
 
@@ -17,21 +17,18 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["sepMuPi_1GeV",
-                  "sepMuPi_5GeV",
-                  "outer_radius"
-                  ]
+    objectives = ["mean_mchi2"]
     
     def submit_slurm_job(self, jobnum):
         with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=klm-mobo\n")
+            file.write("#SBATCH --job-name=rich-global-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write("#SBATCH --output=klm-mobo_%j.out\n")
-            file.write("#SBATCH --error=klm-mobo_%j.err\n")
+            file.write("#SBATCH --output=rich-global-mobo_%j.out\n")
+            file.write("#SBATCH --error=rich-global-mobo_%j.err\n")
             
             file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"runTestsAndObjectiveCalc.py {} \n".format(jobnum))
 
@@ -49,7 +46,8 @@ class SlurmQueueClient:
     def schedule_job_with_parameters(self, parameters):
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the xml files we will use
-        create_xml(parameters, self.totaljobs)
+        create_dat(parameters, self.totaljobs)
+        create_yaml(self.totaljobs)
         
         slurmjobnum = self.submit_slurm_job(self.totaljobs)
         jobid = self.totaljobs
@@ -91,7 +89,7 @@ class SlurmQueueClient:
     def get_outcome_value_for_completed_job(self, jobid):
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
-        results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "klm-mobo-out_{}.txt".format(jobid))
+        results = np.loadtxt(os.environ["AIDE_HOME"]+"/rich/log/results/" + "rich-global-mobo-out_{}.txt".format(jobid))
         if len(self.objectives) > 1:            
             results_dict = {self.objectives[i]:results[i] for i in range(len(self.objectives))}
         else:

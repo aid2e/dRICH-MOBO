@@ -46,7 +46,7 @@ from botorch.acquisition.multi_objective.monte_carlo import (
 )
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description= "Optimization, KLM")
+    parser = argparse.ArgumentParser(description= "Optimization, RICH_global")
     parser.add_argument('-c', '--config', 
                         help='Optimization configuration file', 
                         type = str, required = True)
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     profiler = args.profile
     outdir = config["OUTPUT_DIR"]    
                 
-    optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
+    optimInfo = "optimInfo_RICH_global.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
 
@@ -140,39 +140,28 @@ if __name__ == "__main__":
         parameters=[
             RangeParameter(name=i,
                            lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
-                           parameter_type=ParameterType.INT if i == "num_layers" else ParameterType.FLOAT)
+                           parameter_type=ParameterType.FLOAT)
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
-    # first test: mu-pi separation at two momentum values
-    names = ["sepMuPi_1GeV",
-             "sepMuPi_5GeV",
-             "outer_radius"
-             ]  
+    # first test: mean of mchi2
+    names = ["mean_mchi2"]
     metrics = []
     
     for name in names:
-        if name == 'outer_radius':
             metrics.append(SlurmJobMetric(name=name, lower_is_better=True))
-        else:
-            metrics.append(
-                SlurmJobMetric(
-                    name=name, lower_is_better=False
-                )
-        )
+
     mo = MultiObjective(
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=0.85, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=0.85, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=3200.0, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=3.0, relative=False),
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
     # arm containing nominal design parameters to compare optimization points to
     status_quo_arm = Arm(
-                    parameters={param : int(detconfig["parameters"][param]["default"]) if param=="num_layers" else float(detconfig["parameters"][param]["default"]) for param in detconfig["parameters"]},
+                    parameters={param : float(detconfig["parameters"][param]["default"]) for param in detconfig["parameters"]},
                     name="status_quo"
             )
     
@@ -207,8 +196,8 @@ if __name__ == "__main__":
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
-                num_trials=15,
-                min_trials_observed=12,
+                num_trials=2,
+                min_trials_observed=1,
                 max_parallelism=5
             ),
             GenerationStep(
@@ -231,7 +220,7 @@ if __name__ == "__main__":
     )
     
     # pre-calculated objective metric values for nominal design
-    status_quo_metric_vals = [0.8990445650853882, 0.9076645164516451, 2843.8]
+    status_quo_metric_vals = [1.9]
     status_quo_data = Data(df=pd.DataFrame.from_records(
         [
             {
@@ -259,7 +248,7 @@ if __name__ == "__main__":
     
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
-    exp_df.to_csv("test_scheduler_df.csv")
+    exp_df.to_csv("test_scheduler_df_rich_global.csv")
     
     # register custom metric and runner with json encoder
     bundle = RegistryBundle(
@@ -268,12 +257,12 @@ if __name__ == "__main__":
     )
     
     # export generation strategy model pkl file
-    with open('gs_model.pkl', 'wb') as file:
+    with open('gs_model_rich_global.pkl', 'wb') as file:
         pickle.dump(gen_strategy.model, file)
 
     # export experiment json file
     save_experiment(
         experiment=experiment,
-        filepath='test_scheduler_experiment.json',
+        filepath='test_scheduler_experiment_rich_global.json',
         encoder_registry=bundle.encoder_registry
     )
