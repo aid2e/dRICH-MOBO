@@ -18,7 +18,10 @@ The following repositories/branches hold the current geometry used for the optim
 
 These forks contain tagged versions of the ePIC geometry and reconstruction, with changes to the dRICH geometry and reconstruction procedures to support multiple spherical mirrors with different radii.
 
-These can each be built using the `build_*.sh` scripts from **within eic-shell**, and the build location should be set to $EIC_SOFTWARE (required for ensuring EICrecon loads the correct irt version).
+These can each be built using the `build_*.sh` scripts from **within eic-shell**, and the build location should be set to $EIC_SOFTWARE (required for ensuring EICrecon loads the correct irt version), 
+``` ./build_epic.sh epic-geom-drich-mobo $EIC_SOFTWARE ```
+``` ./build_eicrecon.sh EICrecon-drich-mobo $EIC_SOFTWARE ```
+``` ./build_irt.sh irt $EIC_SOFTWARE ```
 
 Additionally, the dRICH analysis script will need to be built from within eic-shell prior to running the optimization, which can be done via `cd ProjectUtils/ePICUtils/ && make`.
 
