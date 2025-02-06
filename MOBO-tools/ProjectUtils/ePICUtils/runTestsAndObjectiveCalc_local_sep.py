@@ -4,10 +4,15 @@ import numpy as np
 import os
 import sys
 import subprocess
+import signal
+import time
+import threading
 # import math
 # import uncertainties
 import logging
 import traceback
+
+from typing import Any
 
 # NEEDS TO:
 # 1. run overlap check
@@ -17,6 +22,118 @@ import traceback
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s\t%(threadName)s\t%(name)s\t%(levelname)s\t%(message)s')
+
+
+def kill_process_group(pgrp, nap=10):
+    """
+    Kill the process group.
+    DO NOT MOVE TO PROCESSES.PY - will lead to circular import since execute() needs it as well.
+    :param pgrp: process group id (int).
+    :param nap: napping time between kill signals in seconds (int)
+    :return: boolean (True if SIGTERM followed by SIGKILL signalling was successful)
+    """
+
+    status = False
+    _sleep = True
+
+    # kill the process gracefully
+    print(f"killing group process {pgrp}")
+    try:
+        os.killpg(pgrp, signal.SIGTERM)
+    except Exception as error:
+        print(f"exception thrown when killing child group process under SIGTERM: {error}")
+        _sleep = False
+    else:
+        print(f"SIGTERM sent to process group {pgrp}")
+
+    if _sleep:
+        print(f"sleeping {nap} s to allow processes to exit")
+        time.sleep(nap)
+
+    try:
+        os.killpg(pgrp, signal.SIGKILL)
+    except Exception as error:
+        print(f"exception thrown when killing child group process with SIGKILL: {error}")
+    else:
+        print(f"SIGKILL sent to process group {pgrp}")
+        status = True
+
+    return status
+
+
+def kill_all(process: Any) -> str:
+    """
+    Kill all processes after a time-out exception in process.communication().
+
+    :param process: process object
+    :return: stderr (str).
+    """
+
+    stderr = ''
+    try:
+        print('killing lingering subprocess and process group')
+        time.sleep(1)
+        # process.kill()
+        kill_process_group(os.getpgid(process.pid))
+    except ProcessLookupError as exc:
+        stderr += f'\n(kill process group) ProcessLookupError={exc}'
+    except Exception as exc:
+        stderr += f'\n(kill_all 1) exception caught: {exc}'
+    try:
+        print('killing lingering process')
+        time.sleep(1)
+        os.kill(process.pid, signal.SIGTERM)
+        print('sleeping a bit before sending SIGKILL')
+        time.sleep(10)
+        os.kill(process.pid, signal.SIGKILL)
+    except ProcessLookupError as exc:
+        stderr += f'\n(kill process) ProcessLookupError={exc}'
+    except Exception as exc:
+        stderr += f'\n(kill_all 2) exception caught: {exc}'
+    print(f'sent soft kill signals - final stderr: {stderr}')
+    return stderr
+
+
+def run_command_with_timeout(command, timeout=600, stdout=sys.stdout, stderr=sys.stderr):
+    """
+    Run a command and monitor its output. Terminate if no output within timeout.
+    """
+    last_output_time = time.time()
+
+    def monitor_output(stream, output, timeout):
+        nonlocal last_output_time
+        for line in iter(stream.readline, b""):
+            output.buffer.write(line)
+            output.flush()
+            last_output_time = time.time()  # Reset timer on new output
+
+    # Start the process
+    process = subprocess.Popen(command,
+                               preexec_fn=os.setsid,    # setpgrp
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+
+    # Start the monitoring thread
+    stdout_thread = threading.Thread(target=monitor_output, args=(process.stdout, stdout, timeout))
+    stderr_thread = threading.Thread(target=monitor_output, args=(process.stderr, stderr, timeout))
+    stdout_thread.start()
+    stderr_thread.start()
+
+    # monitor the output and enforce timeout
+    while process.poll() is None:
+        time_elapsed = time.time() - last_output_time
+        print(f"time_elapsed: {time_elapsed}, current: {time.time()}, last_update_time: {last_output_time}")
+        if time_elapsed > timeout:
+            print(f"No output for {time_elapsed} seconds. Terminating process.")
+            kill_all(process)
+            break
+        time.sleep(10)  # Check every second
+
+    # Wait for the process to complete and join the monitoring thread
+    stdout_thread.join()
+    stderr_thread.join()
+    process.wait()
+    return process
 
 
 class SubJobManager:
@@ -93,23 +210,14 @@ class SubJobManager:
                 logging.info(f"Job No.{num_jobs} SubJobManager command: {shell_command}")
                 # num_jobs += 1
                 # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                commandout = subprocess.run(shell_command)
+                process = subprocess.run(shell_command)
                 # output = commandout.stdout.decode('utf-8')
                 # error = commandout.stderr.decode('utf-8')
-                status_code = commandout.returncode
+                # process = run_command_with_timeout(shell_command, timeout=300)
+                status_code = process.returncode
                 logging.info(f"Job No.{num_jobs} SubJobManager returncode: {status_code}")
                 self.final_job_status[point_num][particle] = int(status_code)
 
-                output = commandout.stdout
-                error = commandout.stderr
-                if output:
-                    output = output.decode('utf-8')
-                if error:
-                    error = error.decode('utf-8')
-                logging.info(f"Job No.{num_jobs} SubJobManager output:")
-                logging.info(output)
-                logging.info(f"Job No.{num_jobs} SubJobManager error:")
-                logging.info(error)
                 num_jobs += 1
         logging.info("SubJobManager ++++++ end runJobs +++++++")
         return
