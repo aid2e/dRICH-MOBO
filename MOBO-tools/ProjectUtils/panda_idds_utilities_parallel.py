@@ -85,7 +85,7 @@ def run_func(parameters, job_id, p_eta_point, particle, num_particles=1500):
     print(f"============== {job_id} end of stderr ==============")
 
     if return_code != 0:
-        print("failed to run runTestsAndObjectiveCalc_local.py")
+        print("failed to run runTestsAndObjectiveCalc_local_sep.py")
 
     # copy the working directory out for debug
     # print(f"copying directory {os.getcwd()} to /tmp/wguan/test1/")
@@ -184,6 +184,7 @@ def get_final_result(p_eta_points, particles, n_particles, trial, result):
 
 init_env = ['source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/setup_mamba.sh;'
             'source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/dRICH-MOBO/MOBO-tools/setup_new.sh;'
+            'command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;'
             'export AIDE_HOME=$(pwd);'
             'export PWD_PATH=$(pwd);'
             'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)"; '
@@ -194,9 +195,10 @@ init_env = " ".join(init_env)
 
 # BNL_OSG_2, BNL_OSG_PanDA_1
 @workflow_def(service='panda', source_dir=None, source_dir_parent_level=1, local=True, cloud='US',
-              queue='BNL_OSG_2', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
+              queue='BNL_OSG_PanDA_1', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
                                                        "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share"],
               return_workflow=True, max_walltime=3600,
+              core_count=1, total_memory=4000,   # MB
               init_env=init_env,
               container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:24.08.1-stable'})
 def empty_workflow_func():
