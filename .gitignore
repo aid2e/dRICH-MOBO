@@ -4,3 +4,4 @@ MOBO-tools/epic_klm/
 *.ipynb_checkpoints
 __pycache__/
 MOBO-tools/fieldmaps/
+.venv
