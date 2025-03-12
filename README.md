@@ -1,6 +1,8 @@
 # KLM-MOBO
 Repo for applying MOBO to the ePIC KLM, with simulation carried out in eic-shell
 
+Usage instructions: [klm-mobo-documentation.md](klm-mobo-documentation.md)
+
 # Design philosophy 
 
 
