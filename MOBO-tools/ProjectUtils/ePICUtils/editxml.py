@@ -21,6 +21,12 @@ def getPath(param, configfile):
             return -1, -1, -1 
 
 def editGeom(param, value, jobid):
+    
+    extra_params = {
+        "HcalScintillatorThickness":".//constant[@name='HcalScintillatorThickness']",
+        "HcalSteelThickness" : ".//constant[@name='HcalSteelThickness']"
+    }
+    
     if jobid == -1:        
         xmlfile = str(os.environ['EPIC_HOME']+"/compact/pid/klmws.xml")
     else:
@@ -34,13 +40,25 @@ def editGeom(param, value, jobid):
     path, elementToEdit, units = getPath(param, paramfile)
     if path == -1:
         print("ERROR: element path not found/defined")
+#     print(f"{param}")
     element = root.find(path)
-    current_val = element.get(elementToEdit)
+#     current_val = element.get(elementToEdit)
 
     if param == 'num_layers':
         # num_layers only takes on integer values
         element.set(elementToEdit,"{}".format(int(value)))
-    elif units != '':
+    elif param == 'steel_ratio':
+        total = 55.5 + 20
+        units = "mm"
+        scint_value = total * value
+        steel_value = total - scint_value
+        
+        scint_element = root.find(extra_params["HcalScintillatorThickness"])
+        steel_element = root.find(extra_params["HcalSteelThickness"])
+        
+        scint_element.set("HcalScintillatorThickness","{}*{}".format(scint_value,units))        
+        steel_element.set("HcalSteelThickness","{}*{}".format(steel_value,units))   
+    elif units != '':     
         element.set(elementToEdit,"{}*{}".format(value,units))        
     else:
         element.set(elementToEdit,"{}".format(value))
