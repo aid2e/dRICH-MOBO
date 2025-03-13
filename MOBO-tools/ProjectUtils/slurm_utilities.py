@@ -5,7 +5,11 @@ from time import time
 from ProjectUtils.ePICUtils.editxml import create_xml
 
 from typing import Any, Dict, NamedTuple, Union
-
+import os
+def check_and_create_directory(directory_path):
+    # Check if the directory exists
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
 class SlurmJob(NamedTuple):
     id: int
     slurmid: int
@@ -17,25 +21,28 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["sepMuPi_1GeV",
-                  "sepMuPi_5GeV",
-                  "outer_radius"
+    objectives = [
+                  "RMSE",
+             "sepMuPi_1GeV",
+             "sepMuPi_5GeV"
                   ]
     
     def submit_slurm_job(self, jobnum):
-        with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
+        jobdir = str(os.environ["AIDE_HOME"])+ f"/OUTDIR/job_{jobnum}/"
+        check_and_create_directory(jobdir)
+        with open("{}jobconfig_{}.slurm".format(jobdir,jobnum),"w") as file:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=2:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write("#SBATCH --output=klm-mobo_%j.out\n")
-            file.write("#SBATCH --error=klm-mobo_%j.err\n")
+            file.write(f"#SBATCH --output={jobdir}klm-mobo_%j.out\n")
+            file.write(f"#SBATCH --error={jobdir}klm-mobo_%j.err\n")
             
-            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"runTestsAndObjectiveCalc.py {} \n".format(jobnum))
+            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"newRunTestsAndObjectiveCalc.py {} \n".format(jobnum))
 
-        shellcommand = ["sbatch","jobconfig_{}.slurm".format(jobnum)]        
+        shellcommand = ["sbatch","{}jobconfig_{}.slurm".format(jobdir,jobnum)]        
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
         
         output = commandout.stdout.decode('utf-8')

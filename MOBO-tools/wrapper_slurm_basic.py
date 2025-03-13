@@ -101,7 +101,7 @@ if __name__ == "__main__":
             #x: pytorch tensor of design parameters
             values = {}
             for i, name in enumerate(parameters):            
-                values[name] = x[...,i].item() 
+                values[name] = x[...,i].item()
             return eval(text, {}, values)
         return general_constraint
 
@@ -144,14 +144,14 @@ if __name__ == "__main__":
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
     # first test: mu-pi separation at two momentum values
-    names = ["sepMuPi_1GeV",
-             "sepMuPi_5GeV",
-             "outer_radius"
+    names = ["RMSE",
+             "sepMuPi_1GeV",
+             "sepMuPi_5GeV"
              ]  
     metrics = []
     
     for name in names:
-        if name == 'outer_radius':
+        if name == 'outer_radius' or name =='RMSE':
             metrics.append(SlurmJobMetric(name=name, lower_is_better=True))
         else:
             metrics.append(
@@ -163,9 +163,9 @@ if __name__ == "__main__":
         objectives=[Objective(m) for m in metrics],
         )
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=0.85, relative=False),
+        ObjectiveThreshold(metric=metrics[0], bound=2, relative=False),
         ObjectiveThreshold(metric=metrics[1], bound=0.85, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=3200.0, relative=False)
+        ObjectiveThreshold(metric=metrics[2], bound=0.85, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
@@ -231,7 +231,8 @@ if __name__ == "__main__":
     )
     
     # pre-calculated objective metric values for nominal design
-    status_quo_metric_vals = [0.8990445650853882, 0.9076645164516451, 2843.8]
+#     status_quo_metric_vals = [0.8990445650853882, 0.9076645164516451, 2843.8]
+    status_quo_metric_vals = [0.2,0.8990445650853882, 0.9076645164516451] #A and RMSE
     status_quo_data = Data(df=pd.DataFrame.from_records(
         [
             {
