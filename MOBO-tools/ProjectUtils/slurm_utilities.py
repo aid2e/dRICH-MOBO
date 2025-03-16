@@ -24,7 +24,8 @@ class SlurmQueueClient:
     objectives = [
                   "RMSE",
              "sepMuPi_1GeV",
-             "sepMuPi_5GeV"
+             "sepMuPi_5GeV",
+             "outer_radius"
                   ]
     
     def submit_slurm_job(self, jobnum):

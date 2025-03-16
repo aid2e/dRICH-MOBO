@@ -10,7 +10,8 @@ else
     echo "ePIC geometry source code found"
 fi
 
-EIC_SHELL_DIR=$(pwd)
+# EIC_SHELL_DIR=$(pwd)
+EIC_SHELL_DIR='/hpc/group/vossenlab/rck32/eic'
 if [ ! -f "$EIC_SHELL_DIR/eic-shell" ]; then
     echo "eic-shell not found, downloading"
     curl --location https://get.epic-eic.org | bash
@@ -23,7 +24,8 @@ export EIC_SHELL_HOME=$EIC_SHELL_DIR
 export EPIC_HOME=$EPIC_DIR
 
 export DETECTOR_PATH=$EPIC_HOME
-export DETECTOR_CONFIG=epic_klmws_w_solenoid
+# export DETECTOR_CONFIG=epic_klmws_w_solenoid
+export DETECTOR_CONFIG=epic_klmws_only
 
 export EPIC_MOBO_UTILS=$(pwd)/ProjectUtils/ePICUtils/
 export AIDE_HOME=$(pwd)

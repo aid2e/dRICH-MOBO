@@ -180,8 +180,8 @@ class SubJobManager:
             sys.exit(1)
 #         np.savetxt(self.outname,final_results)
         with open(self.outname, "a") as f:
-            f.write(f"\n{final_results[0]}\n{final_results[1]}")
-            print(f"Writing roc scores: {final_results}")
+            f.write(f"\n{final_results[0]}\n{final_results[1]}\n{self.outer_radius}")
+            print(f"Writing roc scores: {final_results} and outer radius: {self.outer_radius}")
         return
     
     def calcGeomVals(self):
