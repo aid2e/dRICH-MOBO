@@ -146,8 +146,8 @@ if __name__ == "__main__":
     # first test: mu-pi separation at two momentum values
     names = ["RMSE",
              "sepMuPi_1GeV",
-             "sepMuPi_5GeV",
-             "outer_radius"
+             "sepMuPi_5GeV"#,
+#              "outer_radius"
              ]  
     metrics = []
     
@@ -165,8 +165,8 @@ if __name__ == "__main__":
         )
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=2, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=0.85, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.85, relative=False)
+        ObjectiveThreshold(metric=metrics[1], bound=0.8, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=0.8, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
@@ -233,7 +233,8 @@ if __name__ == "__main__":
     
     # pre-calculated objective metric values for nominal design
 #     status_quo_metric_vals = [0.8990445650853882, 0.9076645164516451, 2843.8]
-    status_quo_metric_vals = [0.2,0.8990445650853882, 0.9076645164516451,2843.8] #A and RMSE
+#     status_quo_metric_vals = [0.2,0.8990445650853882, 0.9076645164516451,2843.8] #rmse, mu/pi, mu/pi, outer_radius
+    status_quo_metric_vals = [0.2,0.8990445650853882, 0.9076645164516451]
     status_quo_data = Data(df=pd.DataFrame.from_records(
         [
             {

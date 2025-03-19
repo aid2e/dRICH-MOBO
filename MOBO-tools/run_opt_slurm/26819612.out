@@ -1,6 +1,0 @@
-began job
-ePIC geometry source code found
-eic-shell found
-Running on GPU?  False
-{'num_layers': {'element': 'value', 'path': ".//constant[@name='HcalScintillatorNbLayers']", 'default': '14', 'units': '', 'lower': '5', 'upper': '18'}, 'steel_ratio': {'element': 'value', 'path': ".//constant[@name='steel_ratio']", 'default': '0.735', 'units': '', 'lower': '5.0', 'upper': '95.0'}}
-running BoTorch trials

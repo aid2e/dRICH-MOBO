@@ -20,7 +20,7 @@ def getPath(param, configfile):
             print("could not find parameter info")            
             return -1, -1, -1 
 
-def editGeom(param, value, jobid):
+def editGeom(param, value, jobid,num_layers):
     
     extra_params = {
         "HcalScintillatorThickness":".//constant[@name='HcalScintillatorThickness']",
@@ -48,16 +48,17 @@ def editGeom(param, value, jobid):
         # num_layers only takes on integer values
         element.set(elementToEdit,"{}".format(int(value)))
     elif param == 'steel_ratio':
-        total = 55.5 + 20
+        total = (55.5 + 20 + 0.3 * 2) * 14
         units = "mm"
-        scint_value = total * value
-        steel_value = total - scint_value
+        total_per_layer = (total / num_layers) - (0.3 * 2)
+        steel_value = total_per_layer * value
+        scint_value = total_per_layer - steel_value
         
         scint_element = root.find(extra_params["HcalScintillatorThickness"])
         steel_element = root.find(extra_params["HcalSteelThickness"])
         
-        scint_element.set("HcalScintillatorThickness","{}*{}".format(scint_value,units))        
-        steel_element.set("HcalSteelThickness","{}*{}".format(steel_value,units))   
+        scint_element.set("value","{}*{}".format(scint_value,units))        
+        steel_element.set("value","{}*{}".format(steel_value,units))   
     elif units != '':     
         element.set(elementToEdit,"{}*{}".format(value,units))        
     else:
@@ -69,6 +70,7 @@ def editGeom(param, value, jobid):
 def editEPIC(xml, jobid):
     path = "${DETECTOR_PATH}/compact/pid/"
     klmws_old = "klmws.xml"
+    print(f"epic path: path")
     klmws_new = "klmws_{}.xml".format(jobid)
     tree = ET.parse(xml)
     root = tree.getroot()
@@ -94,9 +96,9 @@ def create_xml(parameters, jobid):
     klmws_xml = str(os.environ['EPIC_HOME']+"/compact/pid/klmws.xml")
     klmws_xml_job = str(os.environ['EPIC_HOME']+"/compact/pid/klmws_{}.xml".format(jobid))
     shutil.copyfile(klmws_xml, klmws_xml_job)
-
+    num_layers = parameters['num_layers']
     for param in parameters:
-        editGeom(param, parameters[param], jobid)
+        editGeom(param, parameters[param], jobid,num_layers)
     return
 
     

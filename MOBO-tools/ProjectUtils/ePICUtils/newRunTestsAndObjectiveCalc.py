@@ -45,15 +45,20 @@ class SubJobManager:
             file.write("#SBATCH --time=1:00:00\n")
             file.write("#SBATCH --output={}/klm-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/klm-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
-            
-            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --run_name_pref March10_mobo_test_{self.job_id} --outFile {self.outname}")
+            DETECTOR_PATH = os.environ['DETECTOR_PATH']
+            DETECTOR_CONFIG = os.environ['DETECTOR_CONFIG']
+            compactFileName = f"{DETECTOR_PATH}/{DETECTOR_CONFIG}_{self.job_id}.xml"
+            MOBO_path = "/hpc/home/rck32/groupdir/eic/dRICH-MOBO/MOBO-tools/"
+            loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
+            setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
+            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref March10_mobo_test_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
         filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_p_{}.slurm".format(self.job_id,p)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=klm-mobo\n")
+            file.write("#SBATCH --job-name=mu_pi-klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
@@ -180,8 +185,10 @@ class SubJobManager:
             sys.exit(1)
 #         np.savetxt(self.outname,final_results)
         with open(self.outname, "a") as f:
-            f.write(f"\n{final_results[0]}\n{final_results[1]}\n{self.outer_radius}")
-            print(f"Writing roc scores: {final_results} and outer radius: {self.outer_radius}")
+            f.write(f"\n{final_results[0]}\n{final_results[1]}")
+#             f.write(f"\n{final_results[0]}\n{final_results[1]}\n{self.outer_radius}")
+            print(f"Writing roc scores: {final_results}")
+#             print(f"Writing roc scores: {final_results} and outer radius: {self.outer_radius}")
         return
     
     def calcGeomVals(self):

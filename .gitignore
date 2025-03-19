@@ -4,3 +4,10 @@ MOBO-tools/epic_klm/
 *.ipynb_checkpoints
 __pycache__/
 MOBO-tools/fieldmaps/
+MOBO-tools/slurm_scripts/*
+MOBO-tools/log/overlaps/*
+MOBO-tools/log/results/*
+MOBO-tools/log/sim_files/*
+MOBO-tools/log/job_output/*
+MOBO-tools/OUTDIR/*
+MOBO-tools/run_opt_slurm/err_out/
