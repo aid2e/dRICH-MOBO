@@ -51,7 +51,7 @@ class SubJobManager:
             MOBO_path = "/hpc/home/rck32/groupdir/eic/dRICH-MOBO/MOBO-tools/"
             loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
             setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
-            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref March10_mobo_test_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish")
+            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref March10_mobo_test_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish --deleteDfs True --no-saveGif")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
@@ -152,14 +152,12 @@ class SubJobManager:
     def retrieveResults(self):
         # when results finished, retrieve analysis script outputs
         # and calculate objectives
-#         As = []
 
         if self.final_job_status[i] == 1:
             with open(self.outname) as f:
-#                     A = float(f.readline().strip())
-                RMSE = float(f.readline().strip())
-            print(f"Results successfully aquired\n RMSE: {RMSE}")
-#                 print(f"Results successfully aquired\n RMSE: {RMSE}; A: {A}")
+                low_RMSE = float(f.readline().strip())
+                high_RMSE = float(f.readline().strip())
+            print(f"Results successfully aquired\n low RMSE: {low_RMSE}; high RMSE: {high_RMSE}")
         else:
             sys.exit(1)
         return
@@ -183,12 +181,9 @@ class SubJobManager:
             # if all jobs failed for a momentum point, exit failed
             # TODO: is this how we want to treat this case?
             sys.exit(1)
-#         np.savetxt(self.outname,final_results)
         with open(self.outname, "a") as f:
             f.write(f"\n{final_results[0]}\n{final_results[1]}")
-#             f.write(f"\n{final_results[0]}\n{final_results[1]}\n{self.outer_radius}")
             print(f"Writing roc scores: {final_results}")
-#             print(f"Writing roc scores: {final_results} and outer radius: {self.outer_radius}")
         return
     
     def calcGeomVals(self):
