@@ -167,8 +167,8 @@ if __name__ == "__main__":
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=1, relative=False),
         ObjectiveThreshold(metric=metrics[1], bound=1, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.8, relative=False),
-        ObjectiveThreshold(metric=metrics[3], bound=0.8, relative=False)
+        ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False),
+        ObjectiveThreshold(metric=metrics[3], bound=0.6, relative=False)
         ]
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
@@ -215,7 +215,8 @@ if __name__ == "__main__":
                 max_parallelism=5
             ),
             GenerationStep(
-                model=Models.BOTORCH_MODULAR,            
+                model=Models.BOTORCH_MODULAR,  
+                should_deduplicate = True,          
                 num_trials=-1,
                 model_kwargs={  # args for BoTorchModel
                     "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,

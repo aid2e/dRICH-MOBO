@@ -251,7 +251,7 @@ class SubJobManager:
 
 if __name__ == '__main__':
 
-    npart = 250
+    npart = 500
     p_scan = [1, 5]
 
     # format momenta into strings

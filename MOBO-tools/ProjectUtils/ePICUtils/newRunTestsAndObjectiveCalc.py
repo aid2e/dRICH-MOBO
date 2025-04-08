@@ -38,11 +38,11 @@ class SubJobManager:
         filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}.slurm".format(self.job_id)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
-            file.write(f"#SBATCH --job-name=klm-mobo-{self.job_id}\n")
+            file.write(f"#SBATCH --job-name=submit-workflow-klm-mobo-{self.job_id}\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=scavenger-gpu\n")
+            file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=1:00:00\n")
+            file.write("#SBATCH --time=8:00:00\n")
             file.write("#SBATCH --output={}/klm-mobo-subjob_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/klm-mobo-subjob_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             DETECTOR_PATH = os.environ['DETECTOR_PATH']
@@ -51,7 +51,7 @@ class SubJobManager:
             MOBO_path = "/hpc/home/rck32/groupdir/eic/dRICH-MOBO/MOBO-tools/"
             loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
             setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
-            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref March10_mobo_test_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish --deleteDfs True --no-saveGif")
+            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish --deleteDfs True --no-saveGif")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
@@ -62,7 +62,7 @@ class SubJobManager:
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=2:00:00\n")
+            file.write("#SBATCH --time=8:00:00\n")
             file.write("#SBATCH --output={}/klm-mobo-subjob_mu_pi_%j.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/klm-mobo-subjob_mu_pi_%j.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             
