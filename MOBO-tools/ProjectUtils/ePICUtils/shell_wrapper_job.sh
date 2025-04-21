@@ -10,7 +10,13 @@ fi
 current_dir=$(pwd)
 
 # produce pi+ and K+ sample
-cat << EOF | $EIC_SHELL_HOME/eic-shell
+if [ -f "${current_dir}/eic-shell" ]; then
+    eic_shell="${current_dir}/eic-shell"
+else
+    eic_shell="${EIC_SHELL_HOME}/eic-shell"
+fi
+
+cat << EOF | "${eic_shell}"
 source $AIDE_HOME/load_epic.sh
 $EPIC_MOBO_UTILS/genMomentumScan_job.sh $1 $2 $3 $4 $7 $6
 $EPIC_MOBO_UTILS/dRICHAna $AIDE_HOME/log/sim_files/recon_scan_$4_$6_$7_p_$1_eta_$2_$3.root recon_scan_$4_$6_$7_p_$1_eta_$2_$3.txt $AIDE_HOME/log/results/ $5
