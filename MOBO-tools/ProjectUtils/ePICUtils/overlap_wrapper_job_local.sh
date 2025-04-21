@@ -11,7 +11,13 @@ current_dir=$(pwd)
 
 mkdir -p $AIDE_WORKDIR/log/overlaps/
 
-cat << EOF | $EIC_SHELL_HOME/eic-shell
+if [ -f "${current_dir}/eic-shell" ]; then
+    eic_shell="${current_dir}/eic-shell"
+else
+    eic_shell="${EIC_SHELL_HOME}/eic-shell"
+fi
+
+cat << EOF | "${eic_shell}"
 source $AIDE_HOME/load_epic.sh
 # $EPIC_MOBO_UTILS/runOverlapCheck_jobGeo_local.sh $1 >&2
 $AIDE_HOME/ProjectUtils/ePICUtils/runOverlapCheck_jobGeo_local.sh $1 >&2
