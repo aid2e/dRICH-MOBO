@@ -9,7 +9,13 @@ fi
 
 current_dir=$(pwd)
 
-cat << EOF | $EIC_SHELL_HOME/eic-shell
+if [ -f "${current_dir}/eic-shell" ]; then
+    eic_shell="${current_dir}/eic-shell"
+else
+    eic_shell="${EIC_SHELL_HOME}/eic-shell"
+fi
+
+cat << EOF | "${eic_shell}"
 cd $EPIC_HOME
 source install/setup.sh
 cd $current_dir

@@ -33,6 +33,9 @@ from ProjectUtils.runner_utilities import SlurmJobRunner
 from ProjectUtils.metric_utilities import SlurmJobMetric
 # from ProjectUtils.panda_idds_utilities import build_experiment_pandaidds, PanDAIDDSJobRunner, PanDAIDDSJobMetric
 from ProjectUtils.panda_idds_utilities_parallel import build_experiment_pandaidds, PanDAIDDSJobRunner, PanDAIDDSJobMetric
+from ProjectUtils.panda_idds_utilities_multi_steps import (build_experiment_pandaidds as build_experiment_pandaidds_mul,
+        PanDAIDDSJobRunner as PanDAIDDSJobRunner_mul, PanDAIDDSJobMetric as PanDAIDDSJobMetric_mul)
+
 from ProjectUtils.local_utilities import build_experiment_local, LocalJobRunner, LocalJobMetric
 
 from ax.modelbridge.registry import Models
@@ -172,6 +175,9 @@ if __name__ == "__main__":
     elif args.backend == 'panda':
         for name in names:
             metrics.append(PanDAIDDSJobMetric(name=name, lower_is_better=False))
+    elif args.backend == 'panda_multi_steps':
+        for name in names:
+            metrics.append(PanDAIDDSJobMetric_mul(name=name, lower_is_better=False))
     else:
         for name in names:
             metrics.append(LocalJobMetric(name=name, lower_is_better=False))
@@ -226,6 +232,14 @@ if __name__ == "__main__":
 
         bundle = RegistryBundle(
             metric_clss={PanDAIDDSJobMetric: None}, runner_clss={PanDAIDDSJobRunner: None}
+        )
+    elif args.backend == 'panda_multi_steps':
+        experiment = build_experiment_pandaidds_mul(search_space, optimization_config, PanDAIDDSJobRunner_mul())
+        register_runner(PanDAIDDSJobRunner_mul)
+        register_metric(PanDAIDDSJobMetric_mul)
+
+        bundle = RegistryBundle(
+            metric_clss={PanDAIDDSJobMetric_mul: None}, runner_clss={PanDAIDDSJobRunner_mul: None}
         )
     else:
         experiment = build_experiment_local(search_space, optimization_config, LocalJobRunner())

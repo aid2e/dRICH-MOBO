@@ -1,6 +1,7 @@
 
 import atexit
 import base64
+import getpass
 import json
 import uncertainties
 import math
@@ -52,7 +53,7 @@ def get_outcome_value_for_completed_job(parameters, job_id, p_eta_point, particl
     return ret
 
 
-def run_func(parameters, job_id, p_eta_point, particle, num_particles=1500):
+def run_func_simreco(parameters, job_id, p_eta_point, particle, num_particles=1500, output_file_name=None):
     print(f"start run_func, job_id: {job_id}")
 
     print("start to create xml")
@@ -61,8 +62,71 @@ def run_func(parameters, job_id, p_eta_point, particle, num_particles=1500):
 
     # num_particles = 1500
     # num_particles = 1500
-    shell_command = ["python3", str(os.environ["AIDE_HOME"]) + "/ProjectUtils/ePICUtils/" + "/runTestsAndObjectiveCalc_local_sep.py",
-                     str(job_id), str(num_particles), base64.b64encode(bytes(json.dumps(p_eta_point), 'ascii')), particle]
+
+    if output_file_name:
+        output_root_name = output_file_name
+    else:
+        p = p_eta_point[0]
+        eta_min = p_eta_point[1][0]
+        eta_max = p_eta_point[1][1]
+        output_root_name = "recon_scan_{}_{}_p_{}_eta_{}_{}.root".format(job_id, particle, p, eta_min, eta_max)
+
+    shell_command = ["python3", str(os.environ["AIDE_HOME"]) + "/ProjectUtils/ePICUtils/" + "/runTestsAndObjectiveCalc_local_sep_simreco.py",
+                     str(job_id), str(num_particles), base64.b64encode(bytes(json.dumps(p_eta_point), 'ascii')), particle, output_root_name]
+    # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    commandout = subprocess.run(shell_command)
+    return_code = commandout.returncode
+    # output = commandout.stdout.decode('utf-8')
+    # error = commandout.stderr.decode("utf-8")
+    output = commandout.stdout
+    error = commandout.stderr
+    if output:
+        output = output.decode('utf-8')
+    if error:
+        error = error.decode('utf-8')
+
+    print(f"{job_id} run command: {shell_command}")
+    print(f"{job_id} return code : {return_code}")
+    print(f"============== {job_id} stdout ==============")
+    print(output)
+    print(f"============== {job_id} end of stdout ==============")
+    print(f"============== {job_id} stderr ==============")
+    print(error)
+    print(f"============== {job_id} end of stderr ==============")
+
+    if return_code != 0:
+        print("failed to run runTestsAndObjectiveCalc_local_sep.py")
+
+    # copy the working directory out for debug
+    # print(f"copying directory {os.getcwd()} to /tmp/wguan/test1/")
+    # shutil.copytree(os.getcwd(), '/tmp/wguan/test1/', dirs_exist_ok=True)
+
+    # ret = get_outcome_value_for_completed_job(parameters, job_id, p_eta_point, particle, num_particles)
+    # print(f"ret: {ret}")
+
+    return return_code
+
+
+def run_func_analy(parameters, job_id, p_eta_point, particle, num_particles=1500, input_file_name=None):
+    print(f"start run_func, job_id: {job_id}")
+
+    print("start to create xml")
+    create_xml(parameters, job_id)
+    print("finished to create xml")
+
+    # num_particles = 1500
+    # num_particles = 1500
+
+    if input_file_name:
+        input_root_name = input_file_name
+    else:
+        p = p_eta_point[0]
+        eta_min = p_eta_point[1][0]
+        eta_max = p_eta_point[1][1]
+        input_root_name = "recon_scan_{}_{}_p_{}_eta_{}_{}.root".format(job_id, particle, p, eta_min, eta_max)
+
+    shell_command = ["python3", str(os.environ["AIDE_HOME"]) + "/ProjectUtils/ePICUtils/" + "/runTestsAndObjectiveCalc_local_sep_analy.py",
+                     str(job_id), str(num_particles), base64.b64encode(bytes(json.dumps(p_eta_point), 'ascii')), particle, input_root_name]
     # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     commandout = subprocess.run(shell_command)
     return_code = commandout.returncode
@@ -106,10 +170,10 @@ def harmonic_mean(values, weights):
     return np.sum(weights) / (denom)
 
 
-def get_final_result(p_eta_points, particles, n_particles, trial, result):
+def get_final_result(p_eta_points, particles, n_particles, n_particles_per_job, trial, result):
     final_results = {}
     print(f"trial {trial.index} get_final_result")
-    print(f"trial {trial.index} particles {particles} n_particles {n_particles} p_eta_points {p_eta_points}")
+    print(f"trial {trial.index} particles {particles} n_particles {n_particles} n_particles_per_job {n_particles_per_job} p_eta_points {p_eta_points}")
     for arm in trial.arms:
 
         job_id = f"{trial.index}_{arm.name}"
@@ -124,7 +188,10 @@ def get_final_result(p_eta_points, particles, n_particles, trial, result):
             plus_cher = []
             for particle in particles:
                 # [arm.parameters, job_id, p_eta_point, particle, self.n_particles]
-                ret = result.get_result(name=None, args=[arm.parameters, job_id, p_eta_point, particle, n_particles])
+                params = get_job_param(p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id)
+                job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
+
+                ret = result.get_result(name=None, args=job_params)
                 particles_ret[particle] = ret
                 plus_cher.append(ret['0'].get('plus_cher', None))
 
@@ -193,13 +260,13 @@ init_env = ['source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcont
 init_env = " ".join(init_env)
 
 
-# BNL_OSG_2, BNL_OSG_PanDA_1
+# BNL_OSG_2, BNL_OSG_PanDA_1, BNL_PanDA_1
 @workflow_def(service='panda', source_dir=None, source_dir_parent_level=1, local=True, cloud='US',
-              queue='BNL_OSG_PanDA_1', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
-                                                       "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share", "back*"],
+              queue='BNL_OSG_2', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
+                                                             "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share", "back*"],
               return_workflow=True, max_walltime=3600,
               core_count=1, total_memory=4000,   # MB
-              init_env=init_env,
+              init_env=init_env, enable_separate_log=True,
               container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:24.08.1-stable'})
 def empty_workflow_func():
     pass
@@ -215,9 +282,37 @@ def build_experiment_pandaidds(search_space, optimization_config, runner):
     return experiment
 
 
+def get_user_name():
+    rucio_account = os.environ.get('RUCIO_ACCOUNT', None)
+    if rucio_account:
+        return rucio_account
+
+    username = getpass.getuser()
+    return username
+
+
+def get_job_param(p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id):
+    p = p_eta_point[0]
+    eta_min = p_eta_point[1][0]
+    eta_max = p_eta_point[1][1]
+
+    output_job_name = f'step1_simreco_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
+    username = get_user_name()
+    output_dataset_name = f'user.{username}.{output_job_name}/'
+    output_root_name = "recon_scan_{}_{}_p_{}_eta_{}_{}.root".format(job_id, particle, p, eta_min, eta_max)
+    output_dataset_name = output_dataset_name.replace("+", "_")     # rucio dataset name schema requirement
+    output_root_name = output_root_name.replace("+", "_")
+
+    input_job_name = f'step1_analy_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
+
+    # job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles, n_particles_per_job, output_root_name]
+    job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name]
+    return job_params, output_job_name, output_dataset_name, output_root_name, input_job_name
+
+
 class PanDAIDDSJobRunner(Runner):
     def __init__(self):
-        self._runner_funcs = {'function': run_func, 'pre_kwargs': None}
+        self._runner_funcs = {'step1_simreco_function': run_func_simreco, 'step2_analy_function': run_func_analy, 'pre_kwargs': None}
         self.transforms = {}
         self.workflow = None
         self.retries = 0
@@ -226,7 +321,11 @@ class PanDAIDDSJobRunner(Runner):
         # print(self.workflow)
         # self.workflow.pre_run()
 
-        self.n_particles = 1500
+        self.failed_result = -1
+
+        self.n_particles = 2000
+        self.n_particles_per_job = 1000
+
         self.particles = ["pi+", "kaon+"]
         self.p_eta_points = [
             [15, [1.5, 2.0], 0, 0.02457205, 0.00878185],
@@ -275,24 +374,21 @@ class PanDAIDDSJobRunner(Runner):
             for p_eta_point in self.p_eta_points:
                 for particle in self.particles:
                     # test
-                    params_list.append([arm.parameters, job_id, p_eta_point, particle, self.n_particles])
+                    params = get_job_param(p_eta_point, particle, self.n_particles, self.n_particles_per_job, trial, arm, job_id)
+                    # job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
+                    params_list.append(params)
             # params_list.append([arm.parameters, job_id])
         # print(params_list)
 
         self.transforms[trial.index] = {}
-        self.transforms[trial.index][self.retries] = {}
+        # self.transforms[trial.index][self.retries] = {}
 
         # one work is one objective
         # with multiple objectives, there will be multiple work objects
 
-        function = self._runner_funcs['function']
+        step1_simreco_function = self._runner_funcs['step1_simreco_function']
+        step2_analy_function = self._runner_funcs['step2_analy_function']
         pre_kwargs = self._runner_funcs['pre_kwargs']
-
-        work = work_def(function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True, name=f'run_func_{trial.index}')
-        w = work(multi_jobs_kwargs_list=params_list)
-        # w.store()
-        print(f"trial {trial.index}: create a task: ({w.internal_id}) {w}")
-        self.transforms[trial.index][self.retries] = {'tf_id': None, 'work': w, 'results': None, 'status': 'new'}
 
         # prepare workflow is after the work.store.
         # in this way, the workflow will upload the work's files
@@ -304,148 +400,107 @@ class PanDAIDDSJobRunner(Runner):
             req_id = self.workflow.submit()
             print(f"workflow id: {req_id}")
 
-        print("submit work")
-        tf_id = w.submit()
-        print(f"trial {trial.index} work {w.internal_id} transform id: {tf_id}")
-        if not tf_id:
-            raise Exception("Failed to submit work to PanDA")
-        w.init_async_result()
-        self.transforms[trial.index][self.retries] = {'tf_id': tf_id, 'work': w, 'results': None, 'status': 'new'}
+        for params in params_list:
+            job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
+
+            step1_work = work_def(step1_simreco_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
+                                  name=output_job_name, output_file_name=output_root_name, output_dataset_name=output_dataset_name,
+                                  num_events=self.n_particles, num_events_per_job=self.n_particles_per_job)
+            # step1_w = step1_work(multi_jobs_kwargs_list=params_list)
+            # step1_w = step1_work(args=job_params)
+            step1_w = step1_work(*job_params)
+            # w.store()
+            # print(f"trial {trial.index}: create a task: ({w.internal_id}) {step1_w}")
+            # self.transforms[trial.index][self.retries] = {'tf_id': None, 'work': step1_w, 'results': None, 'status': 'new'}
+
+            print("submit step1 work")
+            step1_tf_id = step1_w.submit()
+            print(f"trial {trial.index} step1 work {step1_w.internal_id} transform id: {step1_tf_id}")
+            if not step1_tf_id:
+                raise Exception("Failed to submit work to PanDA")
+
+            self.transforms[trial.index][input_job_name] = {}
+
+            step2_work = work_def(step2_analy_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
+                                  name=input_job_name, input_dataset_name=output_dataset_name, parent_transform_id=step1_tf_id,
+                                  parent_internal_id=step1_w.internal_id)
+            # step2_w = step2_work(multi_jobs_kwargs_list=params_list)
+            # step2_w = step2_work(args=job_params)
+            step2_w = step2_work(*job_params)
+            print(f"trial {trial.index}: create a task: ({step2_w.internal_id}) {step2_w}")
+            self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': None, 'work': step2_w, 'results': None, 'status': 'new'}
+
+            print("submit step1 work")
+            step2_tf_id = step2_w.submit()
+            print(f"trial {trial.index} step2 work {step2_w.internal_id} {input_job_name} transform id: {step2_tf_id}")
+            if not step2_tf_id:
+                raise Exception("Failed to submit work to PanDA")
+
+            step2_w.init_async_result()
+            self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': step2_tf_id, 'work': step2_w,
+                                                                          'results': None, 'status': 'new',
+                                                                          'job_params': job_params}
         results = {'status': 'running', 'retries': 0, 'result': None, 'combine_result': None}
         return {'results': results}
 
-    def verify_results(self, trial: BaseTrial, results):
-        all_arms_finished = True,
-        unfinished_arms = []
-        print(f"trial {trial.index} work verify_results: {results}")
-        for arm in trial.arms:
-            job_id = f"{trial.index}_{arm.name}"
-
-            for p_eta_point in self.p_eta_points:
-                for particle in self.particles:
-                    # test
-                    ret = results.get_result(name=None, args=[arm.parameters, job_id, p_eta_point, particle, self.n_particles])
-                    if ret is None:
-                        all_arms_finished = False
-                        unfinished_arms.append([arm.parameters, job_id, p_eta_point, particle, self.n_particles])
-        return all_arms_finished, unfinished_arms
-
-    def submit_retries(self, trial, retries, unfinished_arms):
-        print(f"trial {trial.index} work submit retries {retries} for {unfinished_arms}")
-        self.transforms[trial.index][retries] = {}
-
-        # one work is one objective
-        # with multiple objectives, there will be multiple work objects
-
-        function = self._runner_funcs['function']
-        pre_kwargs = self._runner_funcs['pre_kwargs']
-        params_list = []
-        for arm in unfinished_arms:
-            # job_id = f"{trial.index}_{arm.name}"
-            params_list.append(arm)
-
-        work = work_def(function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True, name=f'run_func_{trial.index}')
-
-        w = work(multi_jobs_kwargs_list=params_list)
-        # w.store()
-        print(f"trial {trial.index}, retries {retries}: create a task: {w}")
-        tf_id = w.submit()
-        print(f"trial {trial.index}, retries {retries}: submit a task: {w}, {tf_id}")
-        if not tf_id:
-            raise Exception("Failed to submit work to PanDA")
-        self.transforms[trial.index][retries] = {'tf_id': tf_id, 'work': w, 'results': None}
-
     def get_trial_status(self, trial: BaseTrial):
-        old_results = trial.run_metadata.get("results")
+        ret_results = trial.run_metadata.get("results")
 
-        if old_results['result']:
-            # convert dict to iDDS MapResult
-            map_result = MapResult()
-            old_results['result'] = map_result.set_from_dict_results(old_results['result'])
+        tmp_map_result = MapResult()
+        if not ret_results['result']:
+            ret_results['result'] = {}
+        # MapResult cannot be json serializable. So we only use it as a temp.
+        # When saving to Ax, we convert it to/from dict.
+        tmp_map_result.set_from_dict_results(ret_results['result'])
 
-        all_finished, all_failed, all_terminated = False, False, False
+        all_terminated = True
+        has_failures = False
 
-        status = old_results['status']
-        retries = old_results['retries']
-        avail_results = old_results['result']
-        # if status not in ['finished', 'terminated', 'failed']:
-        if True:
-            w = self.transforms[trial.index][retries]['work']
-            tf_id = self.transforms[trial.index][retries]['tf_id']
-            w.init_async_result()
+        # print(f"transforms: {self.transforms}")
+        for obj in self.transforms[trial.index]:
+            for retries in self.transforms[trial.index][obj]:
+                w = self.transforms[trial.index][obj][retries]['work']
+                # tf_if = self.transforms[trial.index][obj][retries]['tf_id']
+                w.init_async_result()
 
-            # results = w.get_results()
-            # print(results)
-
-            if w.is_terminated():
-                results = w.get_results()
-                print(f"trial {trial.index} work retries {retries} results: {results}")
-                self.transforms[trial.index][retries]['results'] = results
-                if w.is_finished():
-                    print(f"trial {trial.index} work retries {retries} finished")
-                    old_results['status'] = 'finished'
-                elif w.is_failed():
-                    print(f"trial {trial.index} work retries {retries} failed")
-                    old_results['status'] = 'failed'
-                    all_failed = True
+                print(f"trial {trial.index} {obj} work {w.internal_id} retries {retries} status: {w.get_status()}")
+                if not w.is_terminated():
+                    all_terminated = False
                 else:
-                    print(f"trial {trial.index} work retries {retries} terminated")
-                    old_results['status'] = 'terminated'
-                    all_terminated = True
+                    results = w.get_results()
 
-                if avail_results is None:
-                    old_results['result'] = results
-                else:
-                    for arm in trial.arms:
-                        job_id = f"{trial.index}_{arm.name}"
-                        for p_eta_point in self.p_eta_points:
-                            for particle in self.particles:
-                                ret = avail_results.get_result(name=None, args=[arm.parameters, job_id, p_eta_point, particle, self.n_particles])
-                                if ret is None:
-                                    job_par = f"job_id {job_id} p_eta_point {p_eta_point} particle {particle} self.n_particles {self.n_particles}"
-                                    print(f"trial {trial.index} work missing results for arm {arm.name} {job_par}")
-                                    # get results from new retries
-                                    if results:
-                                        new_ret = results.get_result(name=None, args=[arm.parameters, job_id, p_eta_point, particle, self.n_particles])
-                                        print(f"trial {trial.index} work checking results for arm {arm.name} {job_par} from new transform {tf_id}, new results: {new_ret}")
-                                        if new_ret is not None:
-                                            print(f"trial {trial.index} work set result for arm {arm.name} {job_par} from new transform {tf_id} to {new_ret}")
-                                            # avail_results.set_result(name=None, args=[arm.parameters], value=new_ret)
-                                            old_results['result'].set_result(name=None, args=[arm.parameters, job_id, p_eta_point, particle, self.n_particles], value=new_ret)
+                    print(f"trial {trial.index} {obj} work {w.internal_id} retries {retries} results: {results}")
+                    self.transforms[trial.index][obj][retries]['results'] = results
+                    if w.is_finished():
+                        print(f"trial {trial.index} {obj} work {w.internal_id} retries {retries} finished")
+                    elif w.is_failed():
+                        has_failures = True
+                        print(f"trial {trial.index} {obj} work {w.internal_id} retries {retries} failed")
+                    else:
+                        print(f"trial {trial.index} {obj} work {w.internal_id} retries {retries} terminated")
 
-                ret, unfinished_arms = self.verify_results(trial, old_results['result'])
-                print(f"trial {trial.index} work verify_results: ret: {ret}, unfinished_arms: {unfinished_arms}")
-                if unfinished_arms:
-                    all_finished = False
-                else:
-                    all_finished = True
-                if unfinished_arms and retries < 3:
-                    retries += 1
-                    all_finished, all_failed, all_terminated = False, False, False
-                    self.submit_retries(trial, retries, unfinished_arms)
-                    old_results['retries'] = retries
-                    old_results['status'] = 'running'
-                    all_failed, all_terminated = False, False
+                    job_params = self.transforms[trial.index][obj][retries]['job_params']
+                    job_id = job_params[1]
+                    ret = results.get_result(name=None, args=job_params)
+                    print(f"trial {job_id} job_params {job_params} ret: {ret}")
+                    tmp_map_result.set_result(name=None, args=job_params, value=ret)
 
-        if all_finished:
-            print(f"all_finished: {all_finished}, get the final combined result.")
-            old_results['combine_result'] = get_final_result(self.p_eta_points, self.particles, self.n_particles, trial, old_results['result'])
+        ret_status = TrialStatus.RUNNING
+        if all_terminated:
+            combine_results = get_final_result(self.p_eta_points, self.particles, self.n_particles, self.n_particles_per_job, trial, tmp_map_result)
+            ret_results['combine_result'] = combine_results
 
-        if old_results['result']:
-            # to convert iDDS MapResult to dict, which can be serialized with json
-            old_results['result'] = old_results['result'].get_dict_results()
+            if has_failures:
+                ret_results['status'] = 'failed'
+                ret_status = TrialStatus.FAILED
+            else:
+                ret_status = TrialStatus.COMPLETED
+                ret_results['status'] = 'finished'
 
-        trial.update_run_metadata({'results': old_results})
+        ret_results['result'] = tmp_map_result.get_dict_results()  # convert MapResult to dict
+        trial.update_run_metadata({'results': ret_results})
 
-        if all_finished:
-            return TrialStatus.COMPLETED
-        elif all_failed:
-            return TrialStatus.FAILED
-        elif all_terminated:
-            # no subfinished status
-            return TrialStatus.COMPLETED
-
-        return TrialStatus.RUNNING
+        return ret_status
 
     def poll_trial_status(self, trials: Iterable[BaseTrial]):
         # print("poll_trial_status")
