@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## capture environment setup for upgrades
-CONTAINER=jug_xl
+CONTAINER=eic_xl
 TMPDIR=/tmp/wguan
 VERSION=nightly
 PREFIX=/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools
@@ -93,17 +93,11 @@ if [ ! -z ${UPGRADE} ]; then
   exit 0
 fi
 
-# export SIF=/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:24.08.1-stable
-# export SIF=/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:25.04.0-stable
-export SIF=/cvmfs/singularity.opensciencegrid.org/eicweb/eic_xl:25.04.0-stable
-
-
-
 # export EIC_SHELL_PREFIX=/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local
 # export SINGULARITY_BINDPATH=/afs
-export SINGULARITY_BINDPATH=/cvmfs,/afs
+
 CurrentDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export EIC_SHELL_PREFIX=${CurrentDir}/local
+export SINGULARITY_BINDPATH=/cvmfs,/afs
 
-echo ${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local/lib/jug_xl-nightly} eic-shell $@
-${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local/lib/jug_xl-nightly} eic-shell $@
+${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local/lib/eic_xl-nightly} eic-shell $@
