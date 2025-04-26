@@ -3,6 +3,7 @@ import numpy as np
 from ax.core.base_trial import TrialStatus
 from time import time
 from ProjectUtils.ePICUtils.editxml import create_xml
+import pandas as pd
 
 from typing import Any, Dict, NamedTuple, Union
 import os

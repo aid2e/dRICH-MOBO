@@ -51,7 +51,7 @@ class SubJobManager:
             MOBO_path = "/hpc/home/rck32/groupdir/eic/dRICH-MOBO/MOBO-tools/"
             loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
             setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
-            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --waitForFinish --deleteDfs True --no-saveGif")
+            file.write(f"python3 /hpc/group/vossenlab/rck32/eic/work_eic/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
@@ -157,7 +157,10 @@ class SubJobManager:
             with open(self.outname) as f:
                 low_RMSE = float(f.readline().strip())
                 high_RMSE = float(f.readline().strip())
-            print(f"Results successfully aquired\n low RMSE: {low_RMSE}; high RMSE: {high_RMSE}")
+            if((low_RMSE < 0) or (high_RMSE < 0)):
+                manager.writeFailedObjectives()
+            else:
+                print(f"Results successfully aquired\n low RMSE: {low_RMSE}; high RMSE: {high_RMSE}")
         else:
             sys.exit(1)
         return
@@ -176,14 +179,15 @@ class SubJobManager:
                 roc_scores.append(roc_score)
         
         if len(roc_scores) == len(self.p_points):
-            final_results = np.array([roc_scores[0], roc_scores[1]])
+            final_results = np.array(roc_scores)
         else:
             # if all jobs failed for a momentum point, exit failed
             # TODO: is this how we want to treat this case?
             sys.exit(1)
         with open(self.outname, "a") as f:
+#             f.write(f"\n{final_results[0]}")
             f.write(f"\n{final_results[0]}\n{final_results[1]}")
-            print(f"Writing roc scores: {final_results}")
+#             print(f"Writing roc scores: {final_results}")
         return
     
     def calcGeomVals(self):
@@ -294,7 +298,7 @@ class SubJobManager:
 if __name__ == '__main__':
 
     npart = 250
-    p_scan = [1, 5]
+    p_scan = [1,5]
 
     # format momenta into strings
     for i, p in enumerate(p_scan):

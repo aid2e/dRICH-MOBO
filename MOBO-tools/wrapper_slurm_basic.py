@@ -237,6 +237,8 @@ if __name__ == "__main__":
     # pre-calculated objective metric values for nominal design
     #updated noon march 24
     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.9076645164516451]
+
+#     status_quo_metric_vals = [0.4777215,0.677704,0.8990445650853882]
     status_quo_data = Data(df=pd.DataFrame.from_records(
         [
             {
@@ -255,27 +257,28 @@ if __name__ == "__main__":
     status_quo_trial.add_arm(status_quo_arm)
     experiment.attach_data(status_quo_data)
     status_quo_trial.run().complete()
-    
+
+    # Patch the scheduler's internal run_trial method
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions())
     print("running BoTorch trials")
+
     scheduler.run_n_trials(max_trials=N_BATCH)
     
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv("test_scheduler_df.csv")
+
     
+    # export generation strategy model pkl file
+    with open('gs_model.pkl', 'wb') as file:
+        pickle.dump(gen_strategy.model, file)
     # register custom metric and runner with json encoder
     bundle = RegistryBundle(
         metric_clss={SlurmJobMetric: None},
         runner_clss={SlurmJobRunner: None}
     )
-    
-    # export generation strategy model pkl file
-    with open('gs_model.pkl', 'wb') as file:
-        pickle.dump(gen_strategy.model, file)
-
     # export experiment json file
     save_experiment(
         experiment=experiment,
