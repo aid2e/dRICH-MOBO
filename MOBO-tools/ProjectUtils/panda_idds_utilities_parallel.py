@@ -182,25 +182,32 @@ def get_final_result(p_eta_points, particles, n_particles, trial, result):
     return final_results
 
 
-init_env = ['source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/setup_mamba.sh;'
-            'source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/dRICH-MOBO/MOBO-tools/setup_new.sh;'
+# 'source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/setup_mamba.sh;'
+# 'source /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/wguan/mlcontainer:py311_1.0/opt/conda/dRICH-MOBO/MOBO-tools/setup_new.sh;'
+
+init_env = ['source /cvmfs/unpacked.cern.ch/registry.hub.docker.com/fyingtsai/eic_xl:24.11.1/opt/conda/setup_mamba.sh;'
+            'source /cvmfs/unpacked.cern.ch/registry.hub.docker.com/fyingtsai/eic_xl:24.11.1/opt/conda/dRICH-MOBO//MOBO-tools/setup_new.sh;'
             'command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;'
             'export AIDE_HOME=$(pwd);'
             'export PWD_PATH=$(pwd);'
             'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)"; '
+            'export SIF=/cvmfs/singularity.opensciencegrid.org/eicweb/eic_xl:24.11.1-stable; export SINGULARITY_BINDPATH=/cvmfs,/afs; '
             'env; '
             ]
 init_env = " ".join(init_env)
 
 
-# BNL_OSG_2, BNL_OSG_PanDA_1
+# BNL_OSG_2, BNL_OSG_PanDA_1, BNL_PanDA_1
 @workflow_def(service='panda', source_dir=None, source_dir_parent_level=1, local=True, cloud='US',
-              queue='BNL_OSG_PanDA_1', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
-                                                       "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share", "back*"],
+              queue='BNL_OSG_2', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
+                                                             "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share", "back*"],
               return_workflow=True, max_walltime=3600,
               core_count=1, total_memory=4000,   # MB
-              init_env=init_env,
-              container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:24.08.1-stable'})
+              init_env=init_env, enable_separate_log=True
+              # container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/eic_xl:24.11.1-stable'}
+              # container_options={'container_image': '/cvmfs/unpacked.cern.ch/registry.hub.docker.com/fyingtsai/eic_xl:24.11.1'}
+              # container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/htc/rocky:9'}
+              )
 def empty_workflow_func():
     pass
 
