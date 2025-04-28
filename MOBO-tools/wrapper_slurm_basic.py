@@ -1,3 +1,4 @@
+
 from ProjectUtils.config_editor import *
 from ProjectUtils.mobo_utilities import *
 
@@ -45,7 +46,7 @@ from botorch.acquisition.multi_objective.monte_carlo import (
 )
 
 # for sql storage of experiment
-from ax.storage.metric_registry import register_metric
+from ax.storage.metric_registry import register_metrics
 from ax.storage.runner_registry import register_runner
 
 from ax.storage.registry_bundle import RegistryBundle
@@ -71,23 +72,14 @@ if __name__ == "__main__":
     parser.add_argument('-j', '--json_file', 
                         help = "The json file to load and continue optimization", 
                         type = str, required=False)
-    parser.add_argument('-s', '--secret_file', 
-                        help = "The file containing the secret key for weights and biases",
-                        type = str, required = False,
-                        default = "secrets.key")
-    parser.add_argument('-p', '--profile',
-                        help = "Profile the code",
-                        type = bool, required = False, 
-                        default = False)
     args = parser.parse_args()
     
     # READ SOME INFO 
     config = ReadJsonFile(args.config)
     detconfig = ReadJsonFile(args.detparameters)
     jsonFile = args.json_file
-    profiler = args.profile
     outdir = config["OUTPUT_DIR"]    
-                
+    
     optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
@@ -97,27 +89,7 @@ if __name__ == "__main__":
         "dtype": torch.double, 
         "device": torch.device("cuda" if isGPU else "cpu"),
     }
-    
-    print(detconfig["parameters"])
 
-    def constraint_callable(text, parameters):
-        def general_constraint(x):
-            #x: pytorch tensor of design parameters
-            values = {}
-            for i, name in enumerate(parameters):            
-                values[name] = x[...,i].item() 
-            return eval(text, {}, values)
-        return general_constraint
-
-    def constraint_sobol(constraints,parameters):
-        A = np.zeros( (len(constraints), len(parameters)) )
-        b = np.zeros( (len(constraints), 1) )
-        for i in range(len(constraints)):
-            A[i][constraints[i][0]] = constraints[i][2]
-            A[i][constraints[i][1]] = constraints[i][3]
-            b[i] = constraints[i][4]
-        return [A, b]
-    
     # creates linear constraint to pass to ax SearchSpace
     # based on list of parameters with weights given in --detparameters.
     # constraints pass if output < 0
@@ -134,11 +106,10 @@ if __name__ == "__main__":
                     param_dict[param] = 0
             print("param dict: ", param_dict, " param_list: ", param_list)
             constraint_list.append( ParameterConstraint(param_dict,constraints[c]["bound"]) )
-        return constraint_list
-    
+        return constraint_list    
     parameters = list(detconfig["parameters"].keys())
     constraints_ax = constraint_ax(detconfig["constraints"],parameters)
-    print(constraints_ax)
+
     # create search space with linear constraints
     search_space = SearchSpace(
         parameters=[
@@ -151,8 +122,11 @@ if __name__ == "__main__":
         #parameter_constraints=constraints_ax        
     )
 
+    # find some better way to pass these between here,
+    # runner, and objective calculation script.
+    # probably in config file
     names = ["piKsep_etalow",            
-             "piKsep_etahigh",
+             "piKsep_etamidhigh",
              "acceptance"
              ]  
     metrics = []
@@ -167,11 +141,13 @@ if __name__ == "__main__":
         objectives=[Objective(m) for m in metrics],
         )
     # 10% below what would be acceptable design
+    #ETA BINS:
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=2.9, relative=False),
         ObjectiveThreshold(metric=metrics[1], bound=3.8, relative=False),
         ObjectiveThreshold(metric=metrics[2], bound=0.75, relative=False)
-        ]
+    ]
+    
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
@@ -185,8 +161,8 @@ if __name__ == "__main__":
     if (N_MOBO == -1) or (N_SOBOL==-1):
         N_TOTAL+=1
     print("running ", N_TOTAL, " trials")
+
     outname = config["OUTPUT_NAME"]
-    #N_BATCH = config["n_calls"]
     num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
     warmup_steps = 128 if (not config.get("MOBO_params")) else config["MOBO_params"]["warmup_steps"]
     
@@ -198,7 +174,7 @@ if __name__ == "__main__":
         metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
     )
     db_settings = DBSettings(
-        url="sqlite:///{}.db".format(outname),
+        url="sqlite:///{}/{}.db".format(outdir,outname),
         encoder=bundle.encoder,
         decoder=bundle.decoder
     )
@@ -207,7 +183,7 @@ if __name__ == "__main__":
     create_all_tables(engine)
     
     #experiment with custom slurm runner
-    experiment = build_experiment_slurm(search_space,optimization_config, SlurmJobRunner())
+    experiment = build_experiment_slurm(search_space, optimization_config, SlurmJobRunner())
 
     gen_strategy = GenerationStrategy(
         steps=[
@@ -244,14 +220,11 @@ if __name__ == "__main__":
                           db_settings=db_settings)
 
     scheduler.run_n_trials(max_trials=N_TOTAL)
-
-    model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
-
-    # TODO: check for HV convergence
-    hv = observed_hypervolume(modelbridge=model_obj)
-    
     
     exp_df = exp_to_df(experiment)
     outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
-    exp_df.to_csv(outname+".csv")
+    exp_df.to_csv(outdir+"/"+outname+".csv")
 
+    # save model object for further analysis
+    with open(outdir+"/"+outname+'_gs_model.pkl', 'wb') as file:
+        pickle.dump(gen_strategy.model, file)
