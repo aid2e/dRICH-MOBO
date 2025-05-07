@@ -312,6 +312,8 @@ def run(jobid, npart, p_eta_point, particle, input_name):
     '''
 
     manager = SubJobManager(p_eta_point, particle, npart, jobid, input_name)
+    
+    """
     noverlaps = manager.checkOverlap()
 
     if noverlaps != 0:
@@ -323,6 +325,7 @@ def run(jobid, npart, p_eta_point, particle, input_name):
         sys.exit(0)
 
     logging.info("no overlaps, starting momentum/eta scan jobs")
+    """
 
     manager.runJobs()
     # manager.monitorJobs()

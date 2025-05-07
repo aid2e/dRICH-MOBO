@@ -3,8 +3,9 @@
 # python wrapper_panda_idds.py -c optimize.config -d parameters.config --backend local
 # python wrapper_panda_idds.py -c optimize_dev.config -d parameters.config --backend local
 python wrapper_panda_idds.py -c optimize_dev.config -d parameters.config --backend panda
+# python wrapper_panda_idds.py -n test1 -c optimize_dev.config -d parameters.config --backend panda_multi_steps
 # python wrapper_panda_idds.py -c optimize_dev.config -d parameters.config --backend panda_multi_steps
-
+#
 # python wrapper_panda_idds.py -c optimize.config -d parameters.config --backend panda
 # python wrapper_panda_idds.py -c optimize_big.config -d parameters.config --backend panda
 

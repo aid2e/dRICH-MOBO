@@ -32,10 +32,17 @@ source $AIDE_HOME/load_epic.sh
 echo "shell_wrapper_job dRICHAna"
 # $EPIC_MOBO_UTILS/dRICHAna $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
 
-cp $input_name $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root
+# echo cp $input_name $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root
+# echo cp $8 $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root
 
-echo $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
-$AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+echo "input name: " $8
+
+# echo $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+# $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+
+echo $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+$AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+
 EOF
 
 # python $EPIC_MOBO_UTILS/getNsigma.py recon_scan_$6_pi+_p_$1_eta_$2_$3.txt recon_scan_$6_kaon+_p_$1_eta_$2_$3.txt

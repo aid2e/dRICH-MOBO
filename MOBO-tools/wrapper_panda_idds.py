@@ -70,6 +70,7 @@ from ax.storage.sqa_store.structs import DBSettings
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
+    parser.add_argument('-n', '--name', help='workflow name', type=str, default='drich-mobo')
     parser.add_argument('-c', '--config', 
                         help='Optimization configuration file', 
                         type = str, required = True)
@@ -234,7 +235,7 @@ if __name__ == "__main__":
             metric_clss={PanDAIDDSJobMetric: None}, runner_clss={PanDAIDDSJobRunner: None}
         )
     elif args.backend == 'panda_multi_steps':
-        experiment = build_experiment_pandaidds_mul(search_space, optimization_config, PanDAIDDSJobRunner_mul())
+        experiment = build_experiment_pandaidds_mul(search_space, optimization_config, PanDAIDDSJobRunner_mul(name=args.name))
         register_runner(PanDAIDDSJobRunner_mul)
         register_metric(PanDAIDDSJobMetric_mul)
 
