@@ -37,7 +37,10 @@ $AIDE_HOME/ProjectUtils/ePICUtils/genMomentumScan_job_local.sh $1 $2 $3 $4 $7 $6
 
 ## save output name
 output_name=$8
-cp $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root $output_name
+echo $7
+echo $8 ${output_name} $output_name
+echo cp $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root $8
+cp $AIDE_WORKDIR/log/sim_files/recon_scan_$6_$7_p_$1_eta_$2_$3.root $8
 
 EOF
 
