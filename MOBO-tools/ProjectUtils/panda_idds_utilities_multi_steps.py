@@ -118,7 +118,10 @@ def run_func_analy(parameters, job_id, p_eta_point, particle, num_particles=1500
     # num_particles = 1500
 
     if input_file_name:
-        input_root_name = input_file_name
+        if isinstance(input_file_name, (list, tuple)):
+            input_root_name = input_file_name[0]
+        else:
+            input_root_name = input_file_name
     else:
         p = p_eta_point[0]
         eta_min = p_eta_point[1][0]
@@ -170,7 +173,7 @@ def harmonic_mean(values, weights):
     return np.sum(weights) / (denom)
 
 
-def get_final_result(p_eta_points, particles, n_particles, n_particles_per_job, trial, result):
+def get_final_result(name, p_eta_points, particles, n_particles, n_particles_per_job, trial, result):
     final_results = {}
     print(f"trial {trial.index} get_final_result")
     print(f"trial {trial.index} particles {particles} n_particles {n_particles} n_particles_per_job {n_particles_per_job} p_eta_points {p_eta_points}")
@@ -187,9 +190,9 @@ def get_final_result(p_eta_points, particles, n_particles, n_particles_per_job, 
             particles_ret = {}
             plus_cher = []
             for particle in particles:
-                # [arm.parameters, job_id, p_eta_point, particle, self.n_particles]
-                params = get_job_param(p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id)
-                job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
+                # [arm.parameters, job_id, p_eta_point, particle, n_particles]
+                params = get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id)
+                job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name = params
 
                 ret = result.get_result(name=None, args=job_params)
                 particles_ret[particle] = ret
@@ -266,12 +269,15 @@ init_env = " ".join(init_env)
 
 # BNL_OSG_2, BNL_OSG_PanDA_1, BNL_PanDA_1
 @workflow_def(service='panda', source_dir=None, source_dir_parent_level=1, local=True, cloud='US',
-              queue='BNL_OSG_2', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
+              queue='BNL_PanDA_1', exclude_source_files=["DTLZ2*", ".*json", ".*log", "work", "log", "OUTDIR", "calibrations", "fieldmaps", "gdml",
                                                              "EICrecon-drich-mobo", "eic-software", "epic-geom-drich-mobo", "irt", "share", "back*"],
               return_workflow=True, max_walltime=3600,
               core_count=1, total_memory=4000,   # MB
-              init_env=init_env, enable_separate_log=True,
-              container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/jug_xl:24.08.1-stable'})
+              init_env=init_env, enable_separate_log=True
+              # container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/eicweb/eic_xl:24.11.1-stable'}
+              # container_options={'container_image': '/cvmfs/unpacked.cern.ch/registry.hub.docker.com/fyingtsai/eic_xl:24.11.1'}
+              # container_options={'container_image': '/cvmfs/singularity.opensciencegrid.org/htc/rocky:9'}
+              )
 def empty_workflow_func():
     pass
 
@@ -295,31 +301,38 @@ def get_user_name():
     return username
 
 
-def get_job_param(p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id):
+def get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id):
     p = p_eta_point[0]
     eta_min = p_eta_point[1][0]
     eta_max = p_eta_point[1][1]
 
     output_job_name = f'step1_simreco_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
     username = get_user_name()
-    output_dataset_name = f'user.{username}.{output_job_name}/'
+    output_dataset_name = f'user.{username}.{name}.{output_job_name}.$WORKFLOWID/'
+    # output_log_dataset_name = f'user.{username}.{name}.{output_job_name}.$WORKFLOWID.log/'
+    input_dataset_name = f'user.{username}:user.{username}.{name}.{output_job_name}.$WORKFLOWID/'
     output_root_name = "recon_scan_{}_{}_p_{}_eta_{}_{}.root".format(job_id, particle, p, eta_min, eta_max)
     output_dataset_name = output_dataset_name.replace("+", "_")     # rucio dataset name schema requirement
     output_root_name = output_root_name.replace("+", "_")
+    input_dataset_name = input_dataset_name.replace("+", "_")
 
     input_job_name = f'step1_analy_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
+    output_log_dataset_name = f'user.{username}.{name}.{input_job_name}.$WORKFLOWID.log/'
+    output_log_dataset_name = output_log_dataset_name.replace("+", "_")
 
     # job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles, n_particles_per_job, output_root_name]
     job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name]
-    return job_params, output_job_name, output_dataset_name, output_root_name, input_job_name
+    return job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name
 
 
 class PanDAIDDSJobRunner(Runner):
-    def __init__(self):
+    def __init__(self, name='pandaidds'):
         self._runner_funcs = {'step1_simreco_function': run_func_simreco, 'step2_analy_function': run_func_analy, 'pre_kwargs': None}
         self.transforms = {}
         self.workflow = None
         self.retries = 0
+
+        self.name = name
 
         # self.workflow = empty_workflow_func()
         # print(self.workflow)
@@ -327,6 +340,7 @@ class PanDAIDDSJobRunner(Runner):
 
         self.failed_result = -1
 
+        """
         self.n_particles = 2000
         self.n_particles_per_job = 1000
 
@@ -338,6 +352,15 @@ class PanDAIDDSJobRunner(Runner):
             [40, [1.5, 2.0], 1, 0.04405797, 0.00824205],
             [40, [2.0, 2.5], 1, 0.01390604, 0.00350744],
             [40, [2.5, 3.5], 1, 0.01391206, 0.00349814]
+        ]
+        """
+
+        self.n_particles = 200
+        self.n_particles_per_job = 100
+
+        self.particles = ["pi+", "kaon+"]
+        self.p_eta_points = [
+            [15, [1.5, 2.0], 0, 0.02457205, 0.00878185]
         ]
 
         atexit.register(self.cleanup)
@@ -378,7 +401,7 @@ class PanDAIDDSJobRunner(Runner):
             for p_eta_point in self.p_eta_points:
                 for particle in self.particles:
                     # test
-                    params = get_job_param(p_eta_point, particle, self.n_particles, self.n_particles_per_job, trial, arm, job_id)
+                    params = get_job_param(self.name, p_eta_point, particle, self.n_particles, self.n_particles_per_job, trial, arm, job_id)
                     # job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
                     params_list.append(params)
             # params_list.append([arm.parameters, job_id])
@@ -405,7 +428,7 @@ class PanDAIDDSJobRunner(Runner):
             print(f"workflow id: {req_id}")
 
         for params in params_list:
-            job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
+            job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name = params
 
             step1_work = work_def(step1_simreco_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
                                   name=output_job_name, output_file_name=output_root_name, output_dataset_name=output_dataset_name,
@@ -426,11 +449,13 @@ class PanDAIDDSJobRunner(Runner):
             self.transforms[trial.index][input_job_name] = {}
 
             step2_work = work_def(step2_analy_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
-                                  name=input_job_name, input_dataset_name=output_dataset_name, parent_transform_id=step1_tf_id,
-                                  parent_internal_id=step1_w.internal_id)
+                                  name=input_job_name, input_datasets={'input_file_name': input_dataset_name}, parent_transform_id=step1_tf_id,
+                                  log_dataset_name=output_log_dataset_name, parent_internal_id=step1_w.internal_id)
             # step2_w = step2_work(multi_jobs_kwargs_list=params_list)
             # step2_w = step2_work(args=job_params)
-            step2_w = step2_work(*job_params)
+            # job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name]
+            job_params_without_input = job_params[:-1]   # the last arg 'input_file_name' will be filled by input_datasets
+            step2_w = step2_work(*job_params_without_input)
             print(f"trial {trial.index}: create a task: ({step2_w.internal_id}) {step2_w}")
             self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': None, 'work': step2_w, 'results': None, 'status': 'new'}
 
@@ -441,9 +466,13 @@ class PanDAIDDSJobRunner(Runner):
                 raise Exception("Failed to submit work to PanDA")
 
             step2_w.init_async_result()
+
+            # arm_parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name = job_params
+            # job_params[-1] = "$WORKINPUTS1"       # set a placeholder as the inputs (output of the previous job)
+            # job_params_without_input = job_params[:-1]   # input_file_name
             self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': step2_tf_id, 'work': step2_w,
                                                                           'results': None, 'status': 'new',
-                                                                          'job_params': job_params}
+                                                                          'job_params': job_params_without_input}
         results = {'status': 'running', 'retries': 0, 'result': None, 'combine_result': None}
         return {'results': results}
 
@@ -491,7 +520,8 @@ class PanDAIDDSJobRunner(Runner):
 
         ret_status = TrialStatus.RUNNING
         if all_terminated:
-            combine_results = get_final_result(self.p_eta_points, self.particles, self.n_particles, self.n_particles_per_job, trial, tmp_map_result)
+            combine_results = get_final_result(self.name, self.p_eta_points, self.particles, self.n_particles,
+                                               self.n_particles_per_job, trial, tmp_map_result)
             ret_results['combine_result'] = combine_results
 
             if has_failures:
