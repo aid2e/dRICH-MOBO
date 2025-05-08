@@ -1,6 +1,7 @@
 #!/bin/bash
 
-
+#edit this to match your work_eic location
+export WORK_EIC='/hpc/group/vossenlab/rck32/eic/work_eic'
 EPIC_DIR=$(pwd)/epic_klm/
 if [ ! -d "$EPIC_DIR" ]; then
     echo "local ePIC source code not found, downloading"

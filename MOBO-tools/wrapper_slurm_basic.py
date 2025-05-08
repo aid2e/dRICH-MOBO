@@ -143,13 +143,15 @@ if __name__ == "__main__":
                            parameter_type=ParameterType.INT if i == "num_layers" else ParameterType.FLOAT)
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
-    # first test: mu-pi separation at two momentum values
+    '''USER EDIT'''
+    #Place objective names here
     names = ["low_RMSE",
              "high_RMSE",
              "sepMuPi_1GeV",
              "sepMuPi_5GeV"#,
 #              "outer_radius"
              ]  
+    '''USER EDIT END'''
     metrics = []
     
     for name in names:
@@ -164,12 +166,15 @@ if __name__ == "__main__":
     mo = MultiObjective(
         objectives=[Objective(m) for m in metrics],
         )
+    '''USER EDIT'''
+    # Create threshold for each objective
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=1, relative=False),
         ObjectiveThreshold(metric=metrics[1], bound=1, relative=False),
         ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False),
         ObjectiveThreshold(metric=metrics[3], bound=0.6, relative=False)
         ]
+    '''USER EDIT END'''
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
                                                            objective_thresholds=objective_thresholds)
 
@@ -236,8 +241,11 @@ if __name__ == "__main__":
     
     # pre-calculated objective metric values for nominal design
     #updated noon march 24
-    status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.9076645164516451]
-
+    '''USER EDIT'''
+#     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.9076645164516451]
+    status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.817]
+    '''USER EDIT END'''
+    
 #     status_quo_metric_vals = [0.4777215,0.677704,0.8990445650853882]
     status_quo_data = Data(df=pd.DataFrame.from_records(
         [
@@ -267,21 +275,26 @@ if __name__ == "__main__":
     scheduler.run_n_trials(max_trials=N_BATCH)
     
     exp_df = exp_to_df(experiment)
-    outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
+    outcomes = torch.tensor(exp_df[names].values, **tkwargs)  
+    '''USER EDIT'''
     exp_df.to_csv("test_scheduler_df.csv")
-
+    '''USER EDIT END'''
     
     # export generation strategy model pkl file
+    '''USER EDIT'''
     with open('gs_model.pkl', 'wb') as file:
         pickle.dump(gen_strategy.model, file)
+    '''USER EDIT END'''
     # register custom metric and runner with json encoder
     bundle = RegistryBundle(
         metric_clss={SlurmJobMetric: None},
         runner_clss={SlurmJobRunner: None}
     )
     # export experiment json file
+    '''USER EDIT'''
     save_experiment(
         experiment=experiment,
         filepath='test_scheduler_experiment.json',
         encoder_registry=bundle.encoder_registry
     )
+    '''USER EDIT END'''

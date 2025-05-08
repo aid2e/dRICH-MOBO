@@ -22,6 +22,7 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
+    '''USER EDIT'''
     objectives = [
               "low_RMSE",
              "high_RMSE",
@@ -29,7 +30,7 @@ class SlurmQueueClient:
              "sepMuPi_5GeV"#,
 #              "outer_radius"
                   ]
-    
+    '''USER EDIT END'''
     def submit_slurm_job(self, jobnum):
         jobdir = str(os.environ["AIDE_HOME"])+ f"/OUTDIR/job_{jobnum}/"
         check_and_create_directory(jobdir)
@@ -40,8 +41,8 @@ class SlurmQueueClient:
             file.write("#SBATCH --partition=common\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=10:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
-            file.write(f"#SBATCH --output={jobdir}klm-mobo_%j.out\n")
-            file.write(f"#SBATCH --error={jobdir}klm-mobo_%j.err\n")
+            file.write(f"#SBATCH --output={jobdir}klm-mobo_{jobnum}.out\n")
+            file.write(f"#SBATCH --error={jobdir}klm-mobo_{jobnum}.err\n")
             
             file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"newRunTestsAndObjectiveCalc.py {} \n".format(jobnum))
 
@@ -60,7 +61,6 @@ class SlurmQueueClient:
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the xml files we will use
         create_xml(parameters, self.totaljobs)
-        
         slurmjobnum = self.submit_slurm_job(self.totaljobs)
         jobid = self.totaljobs
         
