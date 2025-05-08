@@ -22,4 +22,4 @@ export EIC_SOFTWARE=${CurrentDir}/eic-software/
 
 export AIDE_WORKDIR=$(pwd)/work
 
-export AIDE_HOME==$(pwd)
+export AIDE_HOME=$(pwd)
