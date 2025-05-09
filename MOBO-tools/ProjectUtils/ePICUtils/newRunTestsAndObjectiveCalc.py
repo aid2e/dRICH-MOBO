@@ -6,7 +6,7 @@ import os, sys, subprocess, time, uproot, math, numpy as np, awkward as ak, xml.
 # 4. store all relevant results in klm-mobo-out_{jobid}.txt
 
 class SubJobManager:
-    def __init__(self, p_points, n_part, job_id,run_neutron_objectives):
+    def __init__(self, p_points, n_part, job_id,run_neutron_objectives,run_mu_pi_objectives):
         self.p_points = p_points
         self.n_part = n_part
         self.job_id = job_id
@@ -16,6 +16,7 @@ class SubJobManager:
         self.theta_min = 80
         self.theta_max = 100
         self.run_neutron_objectives = run_neutron_objectives
+        self.run_mu_pi_objectives = run_mu_pi_objectives
     def checkOverlap(self):
         shellcommand = [str(os.environ["EPIC_MOBO_UTILS"])+"/overlap_wrapper_job.sh",str(self.job_id)]
 
@@ -72,19 +73,20 @@ class SubJobManager:
         return filename
     
     def runJobs(self):
-        #mu pi separation jobs
-        for p_point in self.p_points:
-            slurm_file = self.makeSlurmScript_mupi(p_point)                
-            shellcommand = ["sbatch",slurm_file]                
-            commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
-            output = commandout.stdout.decode('utf-8')
-            line_split = output.split()
-            if len(line_split) == 4:
-                slurm_job_id = int(line_split[3])
-                self.slurm_job_ids.append(slurm_job_id)
-            else:
-                #slurm job submission failed, re-submit? or just count as failed?
-                self.slurm_job_ids.append(-1)
+        if(self.run_mu_pi_objectives):
+            #mu pi separation jobs
+            for p_point in self.p_points:
+                slurm_file = self.makeSlurmScript_mupi(p_point)                
+                shellcommand = ["sbatch",slurm_file]                
+                commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
+                output = commandout.stdout.decode('utf-8')
+                line_split = output.split()
+                if len(line_split) == 4:
+                    slurm_job_id = int(line_split[3])
+                    self.slurm_job_ids.append(slurm_job_id)
+                else:
+                    #slurm job submission failed, re-submit? or just count as failed?
+                    self.slurm_job_ids.append(-1)
         if(self.run_neutron_objectives):
             print("running neutron objective job")
             # neutral hadron energy resolution jobs
@@ -210,8 +212,10 @@ class SubJobManager:
     def retrieveResults(self):
         # when results finished, retrieve analysis script outputs
         # and calculate objectives
-
-        if self.final_job_status[i] == 1:
+        full_status = 1
+        for status in self.final_job_status:
+            full_status = full_status and status
+        if full_status:
             with open(self.outname) as f:
                 low_RMSE = float(f.readline().strip())
                 high_RMSE = float(f.readline().strip())
@@ -261,6 +265,7 @@ if __name__ == '__main__':
     
     #FOR DEBUGGING (should be true)
     run_neutron_objectives = True
+    run_mu_pi_objectives = False
     delete_root_files = True
     run_root_files = True
     #DEBUGGING SETTINGS END
@@ -271,9 +276,10 @@ if __name__ == '__main__':
 
     jobid = sys.argv[1]
 
-    manager = SubJobManager(p_scan, npart, jobid,run_neutron_objectives)
+    manager = SubJobManager(p_scan, npart, jobid,run_neutron_objectives,run_mu_pi_objectives)
+    print("Starting overlap check")
     noverlaps = manager.checkOverlap()
-
+    print("finished overlap check")
     if noverlaps != 0:
         # OVERLAP OR ERROR, return -1 for all objectives
         print(noverlaps, " overlaps found, exiting trial")
@@ -295,10 +301,11 @@ if __name__ == '__main__':
     else:
         if(manager.run_neutron_objectives):
             manager.retrieveResults()
-        manager.runJobs_ROCAUC()
-        manager.monitorROCAUCJob()
+        if(manager.run_mu_pi_objectives):
+            manager.runJobs_ROCAUC()
+            manager.monitorROCAUCJob()
         print("successfully retrieved results")
-    if(delete_root_files == True):
+    if((delete_root_files == True) and (manager.run_mu_pi_objectives == True)):
         for p in p_scan:
             for particle in ['mu-', 'pi-']:
                 filename = os.path.join(os.environ['AIDE_HOME'], f'log/sim_files/scan_{jobid}_{particle}_p_{p}.edm4hep.root')

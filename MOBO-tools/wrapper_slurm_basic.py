@@ -140,15 +140,15 @@ if __name__ == "__main__":
         parameters=[
             RangeParameter(name=i,
                            lower=float(detconfig["parameters"][i]["lower"]), upper=float(detconfig["parameters"][i]["upper"]), 
-                           parameter_type=ParameterType.INT if i == "num_layers" else ParameterType.FLOAT)
+                           parameter_type=ParameterType.INT if ((i == "division_layer_number") or (i == "num_layers" )) else ParameterType.FLOAT)
             for i in detconfig["parameters"]] ) #, parameter_constraints=constraints_ax)
 
     '''USER EDIT'''
     #Place objective names here
     names = ["low_RMSE",
-             "high_RMSE",
-             "sepMuPi_1GeV",
-             "sepMuPi_5GeV"#,
+             "high_RMSE"#,
+#              "sepMuPi_1GeV",
+#              "sepMuPi_5GeV"#,
 #              "outer_radius"
              ]  
     '''USER EDIT END'''
@@ -170,9 +170,9 @@ if __name__ == "__main__":
     # Create threshold for each objective
     objective_thresholds = [
         ObjectiveThreshold(metric=metrics[0], bound=1, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=1, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False),
-        ObjectiveThreshold(metric=metrics[3], bound=0.6, relative=False)
+        ObjectiveThreshold(metric=metrics[1], bound=1, relative=False)#,
+#         ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False),
+#         ObjectiveThreshold(metric=metrics[3], bound=0.6, relative=False)
         ]
     '''USER EDIT END'''
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
     # arm containing nominal design parameters to compare optimization points to
     status_quo_arm = Arm(
-                    parameters={param : int(detconfig["parameters"][param]["default"]) if param=="num_layers" else float(detconfig["parameters"][param]["default"]) for param in detconfig["parameters"]},
+                    parameters={param : int(detconfig["parameters"][param]["default"]) if ((param=="num_layers") or (param == "division_layer_number")) else float(detconfig["parameters"][param]["default"]) for param in detconfig["parameters"]},
                     name="status_quo"
             )
     
@@ -243,7 +243,8 @@ if __name__ == "__main__":
     #updated noon march 24
     '''USER EDIT'''
 #     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.9076645164516451]
-    status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.817]
+#     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.817]
+    status_quo_metric_vals = [0.46482974881438877,0.6889291713594765]
     '''USER EDIT END'''
     
 #     status_quo_metric_vals = [0.4777215,0.677704,0.8990445650853882]

@@ -25,9 +25,9 @@ class SlurmQueueClient:
     '''USER EDIT'''
     objectives = [
               "low_RMSE",
-             "high_RMSE",
-             "sepMuPi_1GeV",
-             "sepMuPi_5GeV"#,
+             "high_RMSE"#,
+#              "sepMuPi_1GeV",
+#              "sepMuPi_5GeV"#,
 #              "outer_radius"
                   ]
     '''USER EDIT END'''
@@ -60,7 +60,9 @@ class SlurmQueueClient:
     def schedule_job_with_parameters(self, parameters):
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the xml files we will use
+        print("running create_xml")
         create_xml(parameters, self.totaljobs)
+        print("finished create xml")
         slurmjobnum = self.submit_slurm_job(self.totaljobs)
         jobid = self.totaljobs
         

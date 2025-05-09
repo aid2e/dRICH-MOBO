@@ -20,11 +20,13 @@ def getPath(param, configfile):
             print("could not find parameter info")            
             return -1, -1, -1 
 
-def editGeom(param, value, jobid,num_layers,preshower_ratio):
+def editGeom(param, value, jobid,num_layers,preshower_ratio,division_layer_number):
     
     extra_params = {
         "HcalScintillatorThickness":".//constant[@name='HcalScintillatorThickness']",
         "HcalSteelThickness" : ".//constant[@name='HcalSteelThickness']",
+        "num_layers" : ".//constant[@name='HcalScintillatorNbLayers']",
+        "division_layer_number" : ".//constant[@name='division_layer_number']",
         "preshower_scint_value" : ".//constant[@name='preshower_scint_value']",
         "preshower_steel_value" : ".//constant[@name='preshower_steel_value']",
         "postshower_scint_value" : ".//constant[@name='postshower_scint_value']",
@@ -49,12 +51,35 @@ def editGeom(param, value, jobid,num_layers,preshower_ratio):
 #     current_val = element.get(elementToEdit)
     steel_element = root.find(extra_params["HcalSteelThickness"])
     scint_element = root.find(extra_params["HcalScintillatorThickness"])
+    num_layers_status_quo_element = root.find(extra_params["num_layers"])
     steel_value = float(steel_element.get('value')[:-3])
     scint_value = float(scint_element.get('value')[:-3])
+#     print(f"steel_value: {steel_value}")
+#     print("num_layers_status_quo_element.get('value'):")
+#     print(num_layers_status_quo_element.get('value'))
+    
+#     print("type(num_layers_status_quo_element.get('value')):")
+#     print(type(num_layers_status_quo_element.get('value')))
+    num_layers_status_quo_value = int(num_layers_status_quo_element.get('value'))
 
     if param == 'num_layers':
         # num_layers only takes on integer values
         element.set(elementToEdit,"{}".format(int(value)))
+    elif param == 'division_layer_number':
+        element.set(elementToEdit,"{}".format(int(value)))
+    elif param == 'preshower_steel_value':
+        # Set the preshower steel, don't touch scint
+        element.set(elementToEdit,"{}*{}".format(value,units))
+        # calculate total steel available:
+        total_steel = (steel_value * num_layers_status_quo_value)
+        preshower_steel = division_layer_number * value
+        postshower_steel = total_steel - preshower_steel
+        postshower_steel_per_layer = postshower_steel / (num_layers_status_quo_value - division_layer_number)
+        
+        postshower_steel_element = root.find(extra_params["postshower_steel_value"])
+        postshower_steel_element.set("value","{}*{}".format(postshower_steel_per_layer,units))   
+        
+        
     elif param == 'preshower_steel_ratio':
         total = (55.5 + 20 + 0.3 * 2) * 14
         units = "mm"
@@ -127,8 +152,9 @@ def create_xml(parameters, jobid):
     
     num_layers = parameters['num_layers'] if('num_layers' in parameters) else 14
     preshower_ratio = parameters['preshower_ratio'] if('preshower_ratio' in parameters) else (2.0/14.0)
+    division_layer_number = parameters['division_layer_number'] if ('division_layer_number' in parameters) else 14
     for param in parameters:
-        editGeom(param, parameters[param], jobid,num_layers,preshower_ratio)
+        editGeom(param, parameters[param], jobid,num_layers,preshower_ratio,division_layer_number)
     return
 
     
