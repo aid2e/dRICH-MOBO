@@ -192,11 +192,12 @@ def get_final_result(name, p_eta_points, particles, n_particles, n_particles_per
             for particle in particles:
                 # [arm.parameters, job_id, p_eta_point, particle, n_particles]
                 params = get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job, trial, arm, job_id)
-                job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name = params
+                job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name, job_key = params
 
-                ret = result.get_result(name=None, args=job_params)
+                ret = result.get_result(name=name, key=job_key, args=job_params, verbose=True)
                 particles_ret[particle] = ret
                 plus_cher.append(ret['0'].get('plus_cher', None))
+            print(f"i {i} p_eta_point {p_eta_point} particles_ret {particles_ret} plus_cher {plus_cher}")
 
             p = p_eta_point[0]
             eta_min = p_eta_point[1][0]
@@ -306,6 +307,8 @@ def get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job,
     eta_min = p_eta_point[1][0]
     eta_max = p_eta_point[1][1]
 
+    job_key = f'{job_id}_{particle}_{eta_min}_{eta_max}'
+
     output_job_name = f'step1_simreco_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
     username = get_user_name()
     output_dataset_name = f'user.{username}.{name}.{output_job_name}.$WORKFLOWID/'
@@ -322,7 +325,7 @@ def get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job,
 
     # job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles, n_particles_per_job, output_root_name]
     job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name]
-    return job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name
+    return job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name, job_key
 
 
 class PanDAIDDSJobRunner(Runner):
@@ -340,7 +343,6 @@ class PanDAIDDSJobRunner(Runner):
 
         self.failed_result = -1
 
-        """
         self.n_particles = 2000
         self.n_particles_per_job = 1000
 
@@ -353,15 +355,16 @@ class PanDAIDDSJobRunner(Runner):
             [40, [2.0, 2.5], 1, 0.01390604, 0.00350744],
             [40, [2.5, 3.5], 1, 0.01391206, 0.00349814]
         ]
-        """
 
         self.n_particles = 200
         self.n_particles_per_job = 100
 
+        """
         self.particles = ["pi+", "kaon+"]
         self.p_eta_points = [
             [15, [1.5, 2.0], 0, 0.02457205, 0.00878185]
         ]
+        """
 
         atexit.register(self.cleanup)
 
@@ -428,7 +431,7 @@ class PanDAIDDSJobRunner(Runner):
             print(f"workflow id: {req_id}")
 
         for params in params_list:
-            job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name = params
+            job_params, output_job_name, output_dataset_name, output_root_name, input_job_name, input_dataset_name, output_log_dataset_name, job_key = params
 
             step1_work = work_def(step1_simreco_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
                                   name=output_job_name, output_file_name=output_root_name, output_dataset_name=output_dataset_name,
@@ -448,9 +451,12 @@ class PanDAIDDSJobRunner(Runner):
 
             self.transforms[trial.index][input_job_name] = {}
 
+            # job_id = job_params[1]
+            # particle = job_params[3]
+            # job_key = f'{job_id}_{particle}'  # make sure the job_key is unique per work, different key can be used.
             step2_work = work_def(step2_analy_function, workflow=self.workflow, return_work=True, pre_kwargs=pre_kwargs, map_results=True,
                                   name=input_job_name, input_datasets={'input_file_name': input_dataset_name}, parent_transform_id=step1_tf_id,
-                                  log_dataset_name=output_log_dataset_name, parent_internal_id=step1_w.internal_id)
+                                  log_dataset_name=output_log_dataset_name, parent_internal_id=step1_w.internal_id, job_key=job_key)
             # step2_w = step2_work(multi_jobs_kwargs_list=params_list)
             # step2_w = step2_work(args=job_params)
             # job_params = [arm.parameters, job_id, p_eta_point, particle, n_particles_per_job, output_root_name]
@@ -472,6 +478,7 @@ class PanDAIDDSJobRunner(Runner):
             # job_params_without_input = job_params[:-1]   # input_file_name
             self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': step2_tf_id, 'work': step2_w,
                                                                           'results': None, 'status': 'new',
+                                                                          'job_key': job_key,
                                                                           'job_params': job_params_without_input}
         results = {'status': 'running', 'retries': 0, 'result': None, 'combine_result': None}
         return {'results': results}
@@ -514,9 +521,10 @@ class PanDAIDDSJobRunner(Runner):
 
                     job_params = self.transforms[trial.index][obj][retries]['job_params']
                     job_id = job_params[1]
-                    ret = results.get_result(name=None, args=job_params)
-                    print(f"trial {job_id} job_params {job_params} ret: {ret}")
-                    tmp_map_result.set_result(name=None, args=job_params, value=ret)
+                    job_key = self.transforms[trial.index][obj][retries]['job_key']
+                    ret = results.get_result(name=self.name, args=job_params, key=job_key, verbose=True)
+                    print(f"trial {job_id} job_params {job_params} key {job_key} ret: {ret}")
+                    tmp_map_result.set_result(name=self.name, key=job_key, args=job_params, value=ret)
 
         ret_status = TrialStatus.RUNNING
         if all_terminated:
