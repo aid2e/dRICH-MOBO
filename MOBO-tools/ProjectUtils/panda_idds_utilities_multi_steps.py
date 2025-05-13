@@ -175,7 +175,7 @@ def harmonic_mean(values, weights):
 
 def get_final_result(name, p_eta_points, particles, n_particles, n_particles_per_job, trial, result):
     final_results = {}
-    print(f"trial {trial.index} get_final_result")
+    print(f"trial {trial.index} get_final_result {result}")
     print(f"trial {trial.index} particles {particles} n_particles {n_particles} n_particles_per_job {n_particles_per_job} p_eta_points {p_eta_points}")
     for arm in trial.arms:
 
@@ -307,7 +307,7 @@ def get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job,
     eta_min = p_eta_point[1][0]
     eta_max = p_eta_point[1][1]
 
-    job_key = f'{job_id}_{particle}_{eta_min}_{eta_max}'
+    job_key = f'{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
 
     output_job_name = f'step1_simreco_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
     username = get_user_name()
