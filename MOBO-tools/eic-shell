@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ## capture environment setup for upgrades
-CONTAINER=jug_xl
-TMPDIR=/tmp/wguan
+CONTAINER=eic_xl
+TMPDIR=/tmp
 VERSION=nightly
-PREFIX=/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools
+PREFIX=/gpfs02/eic/abashyal2/dRICH-MOBO3/dRICH-MOBO/MOBO-tools
 DISABLE_CVMFS_USAGE=
 
 function print_the_help {
@@ -105,5 +105,7 @@ export SINGULARITY_BINDPATH=/cvmfs,/afs
 CurrentDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export EIC_SHELL_PREFIX=${CurrentDir}/local
 
-echo ${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local/lib/jug_xl-nightly} eic-shell $@
-${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/afs/cern.ch/user/w/wguan/workdisk/eic/dRICH-MOBO/MOBO-tools/local/lib/jug_xl-nightly} eic-shell $@
+export SINGULARITY_BINDPATH=/cvmfs,/gpfs02,/gpfs01
+
+${SINGULARITY:-/usr/bin/singularity} exec ${SINGULARITY_OPTIONS:-} ${SIF:-/gpfs02/eic/abashyal2/dRICH-MOBO3/dRICH-MOBO/MOBO-tools/local/lib/eic_xl-nightly} eic-shell $@
+
