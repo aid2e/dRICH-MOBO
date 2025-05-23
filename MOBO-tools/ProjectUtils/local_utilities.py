@@ -48,12 +48,20 @@ def get_outcome_value_for_completed_job(job_id):
 def run_func(parameters, job_id):
     print(f"start run_func, job_id: {job_id}")
     create_xml(parameters, job_id)
-    num_particles = 1500
-    num_particles = 1500
+    num_particles = 2
     shell_command = ["python3", str(os.environ["AIDE_HOME"]) + "/ProjectUtils/ePICUtils/" + "/runTestsAndObjectiveCalc_local.py", str(job_id), str(num_particles)]
     # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     commandout = subprocess.run(shell_command)
     return_code = commandout.returncode
+    # Handle special exit code for geometry overlaps
+    if return_code == 42:
+        print(f"[ERROR] Job {job_id} failed due to geometry overlaps — marking trial as FAILED.")
+        return {
+            "piKsep_etahigh": [0.0, 0.0],
+            "piKsep_etalow": [0.0, 0.0],
+            "acceptance": [0.0, 0.0],
+            "status": "FAILED"
+        }
     # output = commandout.stdout.decode('utf-8')
     # error = commandout.stderr.decode("utf-8")
     output = commandout.stdout
@@ -92,9 +100,15 @@ class LocalJobRunner(Runner):
         pass
 
     def run(self, trial: BaseTrial):
+        metadata= {} 
         for arm in trial.arms:
             job_id = f"{trial.index}_{arm.name}"
-            run_func(arm.parameters, job_id)
+            result = run_func(arm.parameters, job_id)
+            #check if run_func returned a failur flag
+            if isinstance(result, dict) and result.get("status") == "FAILED":
+                raise RuntimeError(f"[Ax] Trial {trial.index} failed due to geometry overlaps.")
+            metadata[arm.name]=result
+        return metadata
 
     def poll_trial_status(self, trials: Iterable[BaseTrial]):
         # print("poll_trial_status")

@@ -55,7 +55,6 @@ from botorch.acquisition.multi_objective.monte_carlo import (
 # for sql storage of experiment
 from ax.storage.metric_registry import register_metric
 from ax.storage.runner_registry import register_runner
-
 from ax.storage.registry_bundle import RegistryBundle
 from ax.storage.sqa_store.db import (
     create_all_tables,
@@ -67,6 +66,9 @@ from ax.storage.sqa_store.encoder import Encoder
 from ax.storage.sqa_store.sqa_config import SQAConfig
 from ax.storage.sqa_store.structs import DBSettings
 
+from ax.storage.sqa_store.save import _save_experiment
+from ax.storage.sqa_store.load import _load_experiment
+from ax.exceptions.core import ExperimentNotFoundError
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -216,7 +218,6 @@ if __name__ == "__main__":
     print(f"BATCH_SIZE_MOBO: {BATCH_SIZE_MOBO}")
     print(f"N_SOBOL: {N_SOBOL}")
     print(f"N_MOBO: {N_MOBO}")
-
     if args.backend == 'slurm':
         # experiment with custom slurm runner
         experiment = build_experiment_slurm(search_space, optimization_config, SlurmJobRunner())
@@ -260,6 +261,19 @@ if __name__ == "__main__":
     init_engine_and_session_factory(url=db_settings.url)
     engine = get_engine()
     create_all_tables(engine)
+    # Try to load experiment
+    resume_experiment = False
+    experiment_name = "pareto_experiment"
+    try:
+        experiment = _load_experiment(
+           experiment_name=experiment_name,
+           decoder=bundle.decoder  # This uses the full lambda setup
+        )
+        resume_experiment = True
+        print(f"[INFO] Resuming experiment '{experiment_name}' from DB.")
+    except ExperimentNotFoundError:
+        resume_experiment = False
+        print("[INFO] No previous experiment found. Creating new one.")
 
     gen_strategy = GenerationStrategy(
         steps=[
@@ -287,23 +301,87 @@ if __name__ == "__main__":
             ),
         ]
     )
-    
-    scheduler = Scheduler(experiment=experiment,
-                          generation_strategy=gen_strategy,
-                          options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
-                          db_settings=db_settings)
+    # Build or resume scheduler
+    if resume_experiment:
+       # Try to load experiment from DB
+       print(f"[INFO] Resuming experiment '{experiment_name}'")
+       scheduler = Scheduler.from_stored_experiment(
+           experiment_name=experiment_name,
+           db_settings=db_settings,
+           options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
+       )
+       #Dump the generation startegy staep to if any failed trials
+       gs = scheduler.generation_strategy
+
+       print(f"Current step index: {getattr(gs, '_curr', None).index if getattr(gs, '_curr', None) else 'Unknown'}")
+       print(f"Total steps: {len(gs._steps)}")
+       from collections import Counter
+       step_counts = Counter()
+       print("=== Trials in Experiment ===")
+
+       for trial in experiment.trials.values():
+           method = getattr(trial, "generation_step_index", "unknown")
+           print(f"Trial {trial.index}: status={trial.status.name}, generation_method={getattr(trial, 'generation_method', 'N/A')}")
+       for i, step in enumerate(gs._steps):
+           model_name = step.model.__name__ if hasattr(step.model, "__name__") else str(step.model)
+           print(f"Step {i}: model={model_name}, target_trials={step.num_trials}, trials_run={step_counts.get(i, 0)}")
+    else:
+        #except ExperimentNotFoundError:
+       print(f"[INFO] No experiment named '{experiment_name}' found in DB — creating new one.")
+       experiment = build_experiment_local(search_space, optimization_config, LocalJobRunner())
+       scheduler = Scheduler(
+           experiment=experiment,
+           generation_strategy=gen_strategy,
+           options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
+           db_settings=db_settings,
+       )
+       _save_experiment(experiment, encoder=bundle.encoder, decoder=bundle.decoder)
+
 
     print("before run_n_trials")
-    scheduler.run_n_trials(max_trials=N_TOTAL)
+    hv_values = []
+    trial_indices = []
+    n_existing = len(experiment.trials)
+    n_to_run = N_TOTAL - n_existing
+    try:
+        if n_to_run > 0:
+           for i in range(n_to_run):
+              scheduler.run_n_trials(max_trials=1)
+              model_obj = Models.BOTORCH_MODULAR(experiment=experiment, data=experiment.fetch_data())
+              hv = observed_hypervolume(modelbridge=model_obj)
+              hv_values.append(hv)
+              trial_indices.append(i + 1)
+              print(f"hv: {hv}")
+        else:
+            print(f"[INFO] All {N_TOTAL} trials already exist.")
+    except Exception as e:
+        print(f"Skipping the rest of trials due to error: {e}")
     print("after run_n_trials")
 
-    model_obj = Models.BOTORCH_MODULAR(experiment = experiment, data = experiment.fetch_data())
 
-    # TODO: check for HV convergence
-    hv = observed_hypervolume(modelbridge=model_obj)
-    print(f"hv: {hv}")
-    
+    # Check for HV convergence
+    np.savetxt("hv_values.txt", hv_values)
+    plt.plot(trial_indices, hv_values, marker='o', linestyle='-')
+    plt.xlabel("Trial Number")
+    plt.ylabel("Hypervolume")
+    plt.title("Hypervolume Progression")
+    plt.grid()
+    plt.savefig("hv_evolution.png")
+
     exp_df = exp_to_df(experiment)
-    outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
+    #outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
     exp_df.to_csv(outname+".csv")
+
+    # Optimizing multiple objectives
+    plt.figure(figsize=(10, 6))
+    for col in names:
+        plt.plot(exp_df["trial_index"], exp_df[col], marker="o", linestyle="-", label=col)
+
+    plt.xlabel("Trial Number")
+    plt.ylabel("Objective Value")
+    plt.title("Objective Outcomes Over Trials")
+    plt.legend()
+    plt.grid()
+    plt.savefig("objectiveOutcomes.png")
+
 

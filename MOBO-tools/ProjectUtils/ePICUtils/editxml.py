@@ -101,8 +101,8 @@ def editSensorX(parameters, jobid):
     paramfile = str(os.environ['AIDE_HOME']+"/parameters.config")
     with open(paramfile) as f:
         paramconfig = json.loads(f.read())["parameters"]
-
-        x_default = paramconfig["sensor_centerx"]["default"]
+        
+        x_default = float(paramconfig["sensor_centerx"]["default"])
         radius = parameters["sensor_radius"]
         x_shifted = x_default + (radius*parameters["sensor_centerx"])
 
