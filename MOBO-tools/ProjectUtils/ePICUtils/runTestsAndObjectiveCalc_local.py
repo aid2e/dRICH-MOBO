@@ -248,7 +248,7 @@ def run(jobid, npart):
         results = np.array([-1 for i in range(len(p_eta_scan))])
         np.savetxt(manager.output_name, results)
         manager.writeFailedObjectives()
-        sys.exit(0)
+        sys.exit(42)
 
     logging.info("no overlaps, starting momentum/eta scan jobs")
 
