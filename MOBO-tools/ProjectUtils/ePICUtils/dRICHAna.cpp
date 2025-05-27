@@ -54,7 +54,6 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
 
     double px, py, pz, p, mass;
     double betaTrue;
-
     // get true momentum from thrown particle
     if(MCParticles.isValid()){
       px = MCParticles[0].getMomentum().x;
@@ -99,9 +98,6 @@ void extractSPEres(const char* filename, const char* outname, const char* outdir
   
   //TF1 *f1 = new TF1("gaussianFit", "gaus", mean-2*rms, mean+2*rms);  
   //hSingleThetaError->Fit("gaussianFit","R");
-  TCanvas *c = new TCanvas();
-  hSingleTheta->Draw();
-  c->SaveAs("spetest.png");
 
   TString outname_wdir = TString(outdir) + TString(outname);
   FILE *outfile = fopen(outname_wdir.Data(),"w");
