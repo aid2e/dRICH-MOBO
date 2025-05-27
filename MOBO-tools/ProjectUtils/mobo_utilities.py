@@ -1,7 +1,7 @@
 import torch # pytorch package, allows using GPUs
 
-from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.service.utils.report_utils import exp_to_df  #https://ax.dev/api/service.html#ax.service.utils.report_utils.exp_to_df
+from ax.metrics.noisy_function import GenericNoisyFunctionMetric
 from ax.runners.synthetic import SyntheticRunner
 
 #from ax.runners import Runner
@@ -43,65 +43,7 @@ from matplotlib import pyplot as plt
 from matplotlib.cm import ScalarMappable
 
 
-
-
-#---------------------- TOY FUNCTIONS ------------------------#
-
-def glob_dummy(loc_fun):
-    @wraps(loc_fun)
-    @lru_cache(maxsize=None)
-    def inner(xdic):
-        x_sorted = [xdic[p_name] for p_name in xdic.keys()] #it assumes x will be given as, e.g., dictionary
-        res = loc_fun(x_sorted)
-        return res
-
-    return inner
-# Define the objectives
-@glob_dummy
-def f1(x):
-  res = np.sum(x*x)
-  return res #obj1
-
-@glob_dummy
-def f2(x):
-  res = 1./(np.sum(x*x)+0.01)
-  return res #obj2
-"""
-def glob_fun(loc_fun):
-  @lru_cache(maxsize=None)
-  def inner(xdic):
-    x_sorted = [xdic[p_name] for p_name in xdic.keys()]
-    res = loc_fun(x_sorted)
-    return res
-  return inner
-"""
-def glob_fun(loc_fun):
-    @wraps(loc_fun)
-    @lru_cache(maxsize=None)
-    def inner(xsorted):
-      res = loc_fun(xsorted)
-      return res
-    return inner
-def glob_fun_2(loc_fun):
-    @wraps(loc_fun)
-    @lru_cache(maxsize=None)
-    def inner(xsorted,arg):
-      res = loc_fun(xsorted,arg)
-      return res
-    return inner
-
-#---------------------- BOTORCH FUNCTIONS ------------------------#
-#class simRunner(Runner):
-    
-
-def build_experiment(search_space,optimization_config):
-    experiment = Experiment(
-        name="pareto_experiment",
-        search_space=search_space,
-        optimization_config=optimization_config,
-        runner=SyntheticRunner(),
-    )
-    return experiment
+# set up Ax experiment
 def build_experiment_slurm(search_space,optimization_config,runner):
     experiment = Experiment(
         name="pareto_experiment",
@@ -110,11 +52,3 @@ def build_experiment_slurm(search_space,optimization_config,runner):
         runner=runner
     )
     return experiment
-
-
-def initialize_experiment(experiment,N_INIT):
-    sobol = Models.SOBOL(search_space=experiment.search_space)
-
-    experiment.new_batch_trial(sobol.gen(N_INIT)).run()
-
-    return experiment.fetch_data()
