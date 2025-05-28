@@ -7,11 +7,19 @@ from ax.core.trial import Trial
 from .slurm_utilities import get_slurm_queue_client
 
 class SlurmJobRunner(Runner):  # Deploys trials to external system.
+    def __init__(self, metrics, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # list of objectives (to pass to SlurmQueueClient)
+        self.metrics = metrics
     def run(self, trial: BaseTrial):
         if not isinstance(trial, BaseTrial):
             raise ValueError("This runner only handles `BaseTrial`.")
 
-        slurm_job_queue = get_slurm_queue_client()        
+        slurm_job_queue = get_slurm_queue_client()
+        # supply objective names if not already set for SlurmQueueClient
+        if slurm_job_queue.metrics == None:
+            slurm_job_queue.metrics = self.metrics
+            
         return_job_id = []
         for arm in trial.arms:
             job_id = slurm_job_queue.schedule_job_with_parameters(

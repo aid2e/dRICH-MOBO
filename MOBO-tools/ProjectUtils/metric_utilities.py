@@ -23,8 +23,8 @@ class SlurmJobMetric(Metric):  # Pulls data for trial from external system.
                 "trial_index": trial.index,
                 "metric_name": self.name,
                 "arm_name": trial.arm.name,
-                "mean": metric_data.get(self.name)[0],
-                "sem": metric_data.get(self.name)[1]
+                "mean": metric_data.get(self.name)[0], #metric value
+                "sem": metric_data.get(self.name)[1] #uncertainty (None if not known)
             }
             return Ok(value=Data(df=pd.DataFrame.from_records([df_dict])))
         except Exception as e:

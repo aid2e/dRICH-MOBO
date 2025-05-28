@@ -1,4 +1,3 @@
-
 from ProjectUtils.config_editor import *
 from ProjectUtils.mobo_utilities import *
 
@@ -7,6 +6,12 @@ import time
 
 import pandas as pd
 from ax import *
+from ax.modelbridge.registry import Models
+from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
+from botorch.models.gp_regression import SingleTaskGP
+from ax.models.torch.botorch_modular.surrogate import Surrogate
+from ax.core.outcome_constraint import OutcomeConstraint
+from ax.core.types import ComparisonOp
 
 import numpy as np
 
@@ -27,7 +32,6 @@ from botorch.utils.multi_objective.box_decompositions.dominated import (
 
 import matplotlib.pyplot as plt
 
-import wandb
 
 from ax.modelbridge.registry import Models
 from ProjectUtils.runner_utilities import SlurmJobRunner
@@ -42,24 +46,16 @@ from botorch.acquisition.monte_carlo import (
     qNoisyExpectedImprovement,
 )
 from botorch.acquisition.multi_objective.monte_carlo import (
-    qNoisyExpectedHypervolumeImprovement,
+    qNoisyExpectedHypervolumeImprovement
 )
+from botorch.acquisition.multi_objective.logei import qLogNoisyExpectedHypervolumeImprovement
 
 # for sql storage of experiment
 from ax.storage.metric_registry import register_metrics
 from ax.storage.runner_registry import register_runner
 
-from ax.storage.registry_bundle import RegistryBundle
-from ax.storage.sqa_store.db import (
-    create_all_tables,
-    get_engine,
-    init_engine_and_session_factory,
-)
-from ax.storage.sqa_store.decoder import Decoder
-from ax.storage.sqa_store.encoder import Encoder
-from ax.storage.sqa_store.sqa_config import SQAConfig
-from ax.storage.sqa_store.structs import DBSettings
-
+#early stopping
+from ax.global_stopping.strategies.improvement import ImprovementGlobalStoppingStrategy
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description= "Optimization, dRICH")
@@ -74,13 +70,11 @@ if __name__ == "__main__":
                         type = str, required=False)
     args = parser.parse_args()
     
-    # READ SOME INFO 
-    config = ReadJsonFile(args.config)
-    detconfig = ReadJsonFile(args.detparameters)
-    jsonFile = args.json_file
+    config = ReadJsonFile(args.config) # optimization parameters
+    detconfig = ReadJsonFile(args.detparameters) # geometry parameters
+
     outdir = config["OUTPUT_DIR"]    
-    
-    optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
+    # create specified output directory if it doesn't exist
     if(not os.path.exists(outdir)):
         os.makedirs(outdir)
 
@@ -110,7 +104,6 @@ if __name__ == "__main__":
     parameters = list(detconfig["parameters"].keys())
     constraints_ax = constraint_ax(detconfig["constraints"],parameters)
 
-    # create search space with linear constraints
     search_space = SearchSpace(
         parameters=[
             RangeParameter(name=i,
@@ -118,17 +111,17 @@ if __name__ == "__main__":
                            parameter_type=ParameterType.FLOAT)
             for i in detconfig["parameters"]]
         #,
-        # FOR NOW, reparamterized so no constraints on dRICH geometry
-        #parameter_constraints=constraints_ax        
+        # currently reparamterized so no constraints on dRICH geometry,
+        # but could be applied to search space here.
+        #parameter_constraints=constraints_ax
     )
 
-    # find some better way to pass these between here,
+    # TODO: find some better way to pass these between here,
     # runner, and objective calculation script.
-    # probably in config file
-    names = ["piKsep_etalow",            
-             "piKsep_etamidhigh",
+    names = ["piKsep_etalow",
+             "piKsep_etahigh",
              "acceptance"
-             ]  
+             ]
     metrics = []
     
     for name in names:
@@ -139,16 +132,19 @@ if __name__ == "__main__":
         )
     mo = MultiObjective(
         objectives=[Objective(m) for m in metrics],
-        )
-    # 10% below what would be acceptable design
+    )
+    # 10% below what would be acceptable design (here nominal dRICH performance)
     #ETA BINS:
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=2.9, relative=False),
-        ObjectiveThreshold(metric=metrics[1], bound=3.8, relative=False),
-        ObjectiveThreshold(metric=metrics[2], bound=0.75, relative=False)
+        ObjectiveThreshold(metric=metrics[0], bound=3.62, relative=False),
+        ObjectiveThreshold(metric=metrics[1], bound=4.04, relative=False),
+        ObjectiveThreshold(metric=metrics[2], bound=0.80, relative=False)
     ]
-    
+
+    # TODO: figure out how to make OutcomeConstraint work correctly with Scheduler
+    #outcome_constraint = OutcomeConstraint(metrics[2],ComparisonOp.GEQ,0.75)
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
+                                                           #outcome_constraints=[outcome_constraint],
                                                            objective_thresholds=objective_thresholds)
 
     #TODO: implement check of dominated HV convergence instead of
@@ -160,37 +156,20 @@ if __name__ == "__main__":
     N_TOTAL = N_SOBOL + N_MOBO
     if (N_MOBO == -1) or (N_SOBOL==-1):
         N_TOTAL+=1
-    print("running ", N_TOTAL, " trials")
+    print("Scheduling ", N_TOTAL, " trials")
 
     outname = config["OUTPUT_NAME"]
     num_samples = 64 if (not config.get("MOBO_params")) else config["MOBO_params"]["num_samples"]
     warmup_steps = 128 if (not config.get("MOBO_params")) else config["MOBO_params"]["warmup_steps"]
     
-    # set up sql storage
-    register_metric(SlurmJobMetric)
-    register_runner(SlurmJobRunner)
-
-    bundle = RegistryBundle(
-        metric_clss={SlurmJobMetric: None}, runner_clss={SlurmJobRunner: None}
-    )
-    db_settings = DBSettings(
-        url="sqlite:///{}/{}.db".format(outdir,outname),
-        encoder=bundle.encoder,
-        decoder=bundle.decoder
-    )
-    init_engine_and_session_factory(url=db_settings.url)
-    engine = get_engine()
-    create_all_tables(engine)
-    
     #experiment with custom slurm runner
-    experiment = build_experiment_slurm(search_space, optimization_config, SlurmJobRunner())
-
+    experiment = build_experiment_slurm(search_space, optimization_config, SlurmJobRunner(metrics=names))
+    
     gen_strategy = GenerationStrategy(
         steps=[
             GenerationStep(
                 model=Models.SOBOL,
                 num_trials=N_SOBOL,
-                min_trials_observed=N_SOBOL,
                 max_parallelism=BATCH_SIZE_SOBOL,
                 model_kwargs={"seed": 999}
             ),
@@ -198,12 +177,10 @@ if __name__ == "__main__":
                 model=Models.BOTORCH_MODULAR,            
                 num_trials=-1,
                 model_kwargs={  # args for BoTorchModel
-                    "surrogate": Surrogate(botorch_model_class=SaasFullyBayesianSingleTaskGP,
-                                           mll_options={"num_samples": 128,"warmup_steps": 256,  # Increasing this may result in better model fits
-                                                        },
-                                           ),
-                    "botorch_acqf_class": qNoisyExpectedHypervolumeImprovement,
-                    "refit_on_update": True,
+                    "surrogate": Surrogate(
+                        botorch_model_class=SingleTaskGP
+                    ),
+                    "botorch_acqf_class": qLogNoisyExpectedHypervolumeImprovement,
                     "refit_on_cv": True,
                     "warm_start_refit": True
                 },
@@ -212,19 +189,27 @@ if __name__ == "__main__":
         ]
     )
     
+    # setting up early stopping strategy
+    stopping_strategy = ImprovementGlobalStoppingStrategy(
+        min_trials= N_SOBOL + 5*BATCH_SIZE_MOBO, window_size=3*BATCH_SIZE_MOBO, improvement_bar=0.01
+    )
+    
     scheduler = Scheduler(experiment=experiment,
                           generation_strategy=gen_strategy,
                           options=SchedulerOptions(init_seconds_between_polls=10,
                                                    seconds_between_polls_backoff_factor=1,
-                                                   min_failed_trials_for_failure_rate_check=2),
-                          db_settings=db_settings)
+                                                   min_failed_trials_for_failure_rate_check=5,                                                   
+                                                   #global_stopping_strategy=stopping_strategy
+                                                   )
+                          )
 
     scheduler.run_n_trials(max_trials=N_TOTAL)
     
     exp_df = exp_to_df(experiment)
-    outcomes = torch.tensor(exp_df[names].values, **tkwargs)    
+    outcomes = torch.tensor(exp_df[names].values, **tkwargs)
     exp_df.to_csv(outdir+"/"+outname+".csv")
 
     # save model object for further analysis
     with open(outdir+"/"+outname+'_gs_model.pkl', 'wb') as file:
-        pickle.dump(gen_strategy.model, file)
+        pickle.dump(gen_strategy.model, file) 
+   
