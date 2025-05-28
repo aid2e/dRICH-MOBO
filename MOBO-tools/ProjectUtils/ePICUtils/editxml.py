@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import sys
 import json
 import shutil
+import math
 
 def getPath(param, configfile):
     if(os.path.isfile(configfile) == False):
@@ -20,12 +21,12 @@ def getPath(param, configfile):
             print("could not find parameter info")            
             return -1, -1, -1 
 
-def editGeom(param, value, jobid):
+def editGeom(param, value, jobid, parameters):
     if jobid == -1:        
         xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich.xml")
     else:
         xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))        
-
+    
     tree = ET.parse(xmlfile)
     root = tree.getroot()
 
@@ -36,85 +37,27 @@ def editGeom(param, value, jobid):
         print("ERROR: element path not found/defined")
     element = root.find(path)
     current_val = element.get(elementToEdit)
-    
-    if param == "sensor_centerz":
-        element.set(elementToEdit,"{}*{} - DRICH_zmin + 238*cm".format(value,units))
-    elif param == "mirror_xcut":
-        element.set(elementToEdit,"(DRICH_rmin1 + DRICH_rmax2)/2 - {}*{}".format(value,units))
+
+    '''
+    if ("radius" in param) and ("mirror" in param):
+        # set center z based on mirror radius
+        z_path = path.replace('radius','centerz')
+        z_element = root.find(z_path)
+        z_elementToEdit = elementToEdit.replace('radius','centerz')
+        # fix position to drich backplane
+        z_element.set(z_elementToEdit,"{}*{}".format(314 - value, units))
     else:
-        if units != '':
-            element.set(elementToEdit,"{}*{}".format(value,units))        
-        else:
-            element.set(elementToEdit,"{}".format(value))
-
-        if ("radius" in param) and ("mirror" in param):
-            # set center z based on mirror radius
-            z_path = path.replace('radius','centerz')
-            z_element = root.find(z_path)
-            z_elementToEdit = elementToEdit.replace('radius','centerz')
-            # fix position to drich backplane
-            z_element.set(z_elementToEdit,"{}*{}".format(311 - value, units))
-    tree.write(xmlfile)
-    return
-
-def editMirrorGeom(parameters, jobid):
-    if jobid == -1:        
-        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich.xml")
+    '''
+    if units != '':
+        element.set(elementToEdit,"{}*{}".format(value,units))        
     else:
-        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))        
-
-    tree = ET.parse(xmlfile)
-    root = tree.getroot()
-
-    paramfile = str(os.environ['AIDE_HOME']+"/parameters.config")
-    with open(paramfile) as f:
-        paramconfig = json.loads(f.read())["parameters"]
-
-        nmirrors = 2
-        for i in range(1,nmirrors+1):
-            # first update radius
-            
-            path, elementToEdit, units = getPath("mirror{}_radius".format(i), paramfile)
-            element = root.find(path)
-            radius = parameters["mirror{}_radius".format(i)]
-            element.set(elementToEdit,"{}*{}".format(radius,"cm"))
-            
-            x_default = paramconfig["mirror{}_centerx".format(i)]["default"]
-            x_shifted = x_default + (radius*parameters["mirror{}_centerx".format(i)])
-            
-            path, elementToEdit, units = getPath("mirror{}_centerx".format(i), paramfile)
-            element = root.find(path)
-            element.set(elementToEdit,"{}*{}".format(x_shifted,"cm"))
+        element.set(elementToEdit,"{}".format(value))
 
     tree.write(xmlfile)
     return
-
-def editSensorX(parameters, jobid):
-    if jobid == -1:        
-        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich.xml")
-    else:
-        xmlfile = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))        
-
-    tree = ET.parse(xmlfile)
-    root = tree.getroot()
-
-    paramfile = str(os.environ['AIDE_HOME']+"/parameters.config")
-    with open(paramfile) as f:
-        paramconfig = json.loads(f.read())["parameters"]
-
-        x_default = paramconfig["sensor_centerx"]["default"]
-        radius = parameters["sensor_radius"]
-        x_shifted = x_default + (radius*parameters["sensor_centerx"])
-
-        path, elementToEdit, units = getPath("sensor_centerx", paramfile)
-        element = root.find(path)
-        element.set(elementToEdit,"{}*{}".format(x_shifted,"cm"))
-        
-    tree.write(xmlfile)
-    return
-        
     
 def editEPIC(xml, jobid):
+    # load drich_{jobid}.xml in the epic_craterlake_{jobid}.xml
     path = "${DETECTOR_PATH}/compact/pid/"
     drich_old = "drich.xml"
     drich_new = "drich_{}.xml".format(jobid)
@@ -128,11 +71,9 @@ def editEPIC(xml, jobid):
             return
     print("failed to update to new drich geo")
     return
-    
-    
+        
 def create_xml(parameters, jobid):
-    #create new epic xml
-    print("creating xmls ", jobid)
+    #create new epic xml    
     epic_xml = "{}/{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'])
     epic_xml_job = "{}/{}_{}.xml".format(os.environ['DETECTOR_PATH'],os.environ['DETECTOR_CONFIG'],jobid) 
     shutil.copyfile(epic_xml, epic_xml_job)
@@ -144,18 +85,8 @@ def create_xml(parameters, jobid):
     drich_xml_job = str(os.environ['DETECTOR_PATH']+"/compact/pid/drich_{}.xml".format(jobid))
     shutil.copyfile(drich_xml, drich_xml_job)
 
-    for param in parameters:
-        if param == "sensor_centerz":
-            editGeom(param, parameters[param] - parameters["sensor_radius"], jobid)
-        elif param == "sensor_centerx":
-            #TODO: find some cleaner way to define geometry editing functions
-            continue
-        elif "mirror" in param:
-            continue
-        else:
-            editGeom(param, parameters[param], jobid)
-    editMirrorGeom(parameters,jobid)
-    editSensorX(parameters,jobid)
+    for param in parameters:        
+        editGeom(param, parameters[param], jobid, parameters)    
     return
 
     

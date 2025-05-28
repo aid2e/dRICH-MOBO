@@ -17,25 +17,26 @@ class SlurmQueueClient:
     """
     jobs = {}
     totaljobs = 0
-    objectives = ["piKsep_etalow",
-                  "piKsep_etahigh",
-                  "acceptance"
-                  ]
+    metrics = None
+    #["piKsep_etalow",
+    #              "piKsep_etahigh",
+    #              "acceptance"
+    #              ]
     
     def submit_slurm_job(self, jobnum):
         with open("jobconfig_{}.slurm".format(jobnum),"w") as file:
+            # currently configured for Slurm on the Duke Compute Cluster
+            # TODO: set these parameters from a config filfe
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=drich-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
             file.write("#SBATCH --partition=scavenger\n")
-            #file.write("#SBATCH --partition=vossenlab-gpu")
-            #file.write("#SBATCH --nodelist=dcc-vossenlab-gpu-01")
             file.write("#SBATCH --mem=2G\n")
-            file.write("#SBATCH --time=4:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
+            file.write("#SBATCH --time=4:00:00\n") 
             file.write("#SBATCH --output=/hpc/group/vossenlab/cmp115/AIDE/dRICH-MOBO/MOBO-tools/log/job_output/drich-mobo_%j.out\n")
             file.write("#SBATCH --error=/hpc/group/vossenlab/cmp115/AIDE/dRICH-MOBO/MOBO-tools/log/job_output/drich-mobo_%j.err\n")
             
-            file.write("python3.9 " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
+            file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"/runTestsAndObjectiveCalc.py {} \n".format(jobnum))
         print("starting slurm job ", jobnum)
         shellcommand = ["sbatch","jobconfig_{}.slurm".format(jobnum)]        
         commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
@@ -51,8 +52,8 @@ class SlurmQueueClient:
     def schedule_job_with_parameters(self, parameters):
         ### HERE: schedule the slurm job, retrieve the jobid from command line output        
         ### totaljobs/jobid defines the suffix of the xml files we will use
-        create_xml(parameters, self.totaljobs)
-        
+
+        create_xml(parameters, self.totaljobs)        
         slurmjobnum = self.submit_slurm_job(self.totaljobs)
         jobid = self.totaljobs
         
@@ -73,14 +74,14 @@ class SlurmQueueClient:
         
         output = commandout.stdout.decode('utf-8')
         line_split = output.split()
-
+        
         if len(line_split) == 1:
             status = line_split[0]
         else:
-            #something wrong, try again
+            #something wrong, assume still running and check again
             print("Error in checking slurm status, assuming still running")
             return TrialStatus.RUNNING
-
+        
         if status == "0":
             return TrialStatus.RUNNING
         elif status == "1":
@@ -91,15 +92,21 @@ class SlurmQueueClient:
             return TrialStatus.FAILED
         
         return TrialStatus.RUNNING
-
+        
     def get_outcome_value_for_completed_job(self, jobid):
         job = self.jobs[jobid]
         ### HERE: load results from text file, formatted based on job id
         results = np.loadtxt(os.environ["AIDE_HOME"]+"/log/results/" + "drich-mobo-out_{}.txt".format(jobid))
-        if len(self.objectives) > 1:            
-            results_dict = {self.objectives[i]:[results[2*i],results[2*i+1]] for i in range(len(self.objectives))}
+        results_dict = {}
+        if len(self.metrics) > 1:
+            for idx, obj in enumerate(self.metrics):
+                mean = results[2*idx]
+                sem = results[2*idx+1]
+                if sem == 0:
+                    sem = None
+                results_dict[obj] = [mean,sem]
         else:
-            results_dict = {self.objectives[0]:results}
+            results_dict = {self.metrics[0]:results}
         return results_dict
 
 SLURM_QUEUE_CLIENT = SlurmQueueClient()
