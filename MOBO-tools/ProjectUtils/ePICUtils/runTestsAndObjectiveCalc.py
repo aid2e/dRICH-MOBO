@@ -48,8 +48,8 @@ class SubJobManager:
             file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --nodes=1\n")
             file.write("#SBATCH --cpus-per-task=1\n")
-            file.write("#SBATCH --mem=3G\n")
-            file.write("#SBATCH --time=3:45:00\n")
+            file.write("#SBATCH --mem=4G\n")
+            file.write("#SBATCH --time=4:00:00\n")
             file.write("#SBATCH --output={}/drich-mobo-subjob_%j.out\n".format("log/job_output/"))
             file.write("#SBATCH --error={}/drich-mobo-subjob_%j.err\n".format("log/job_output/"))            
             file.write(str(os.environ["EPIC_MOBO_UTILS"])+"/shell_wrapper_job.sh {} {} {} {} {} {} {} \n".format(p,eta_min,eta_max,self.n_part,radiator,self.job_id,particle))
@@ -137,21 +137,24 @@ class SubJobManager:
             p = p_eta_point[0]
             eta_min = p_eta_point[1][0]
             eta_max = p_eta_point[1][1]
-            if self.final_job_status[i] == 1:
-                print("job status 1")
-                K_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_{}_kaon+_p_{}_eta_{}_{}.txt".format(self.n_part,self.job_id,p,eta_min,eta_max))
-                pi_plus_cher = np.loadtxt(str(os.environ["AIDE_HOME"])+"/log/results/"+"recon_scan_{}_{}_pi+_p_{}_eta_{}_{}.txt".format(self.n_part,self.job_id,p,eta_min,eta_max))
-                mean_nphot = (pi_plus_cher[0] + K_plus_cher[0])/2
-                mean_sigma = (pi_plus_cher[2] + K_plus_cher[2])/2
-                #calculate nsigma separation 
-                if mean_sigma != 0:
-                    nsigma = (abs(pi_plus_cher[1] - K_plus_cher[1])*math.sqrt(mean_nphot))/mean_sigma
-                else:
-                    nsigma = 0
-                #get mean fraction of tracks with reco photons
-                mean_eff = (pi_plus_cher[3] + K_plus_cher[3])/2
-                results_nsigma.append(uncertainties.ufloat(nsigma,p_eta_point[3]*nsigma))
-                results_eff.append(uncertainties.ufloat(mean_eff,p_eta_point[4]*mean_eff))
+            radiator = p_eta_point[2]            
+            if self.final_job_status[i] == 1: #FIX THIS: there are two jobs per p/eta point...
+                
+                # run analysis script on pion and kaon files for this point
+                shellcommand = str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/run_combined_ana.sh "
+                shellcommand += f"{self.n_part} {self.job_id} {p} {eta_min} {eta_max} {radiator} {self.n_part} 5000"
+                commandout = subprocess.run(shellcommand,shell=True,stdout=subprocess.PIPE)                
+                if commandout.returncode != 0:
+                    print("Analysis script failed! marking trial as failed")
+                    sys.exit(1)
+                # now collect txt results
+                results = np.loadtxt(str(os.environ["AIDE_HOME"])+f"/log/results/recon_scan_{npart}_{self.job_id}_p_{p}_eta_{eta_min}_{eta_max}.txt")
+                # results include efficiency and pi-K separation, with uncertainty estimate
+                nsigma = uncertainties.ufloat(results[2],results[3])
+                eff = uncertainties.ufloat(results[0],results[1])
+                
+                results_nsigma.append(nsigma)
+                results_eff.append(eff)
                 result_p[i] = p
                 result_etalow[i] = eta_min
         results_nsigma = np.array(results_nsigma)
@@ -161,9 +164,9 @@ class SubJobManager:
         piKsep_etahigh = np.mean(results_nsigma[result_p==45])
         acc_total = np.mean(results_eff[1:])
         
-        final_results = np.array( [ piKsep_etalow.n, 0,
-                                    piKsep_etahigh.n, 0,
-                                    acc_total.n, 0
+        final_results = np.array( [ piKsep_etalow.n, piKsep_etalow.s,
+                                    piKsep_etahigh.n, piKsep_etahigh.s,
+                                    acc_total.n, acc_total.s
                                    ]
                                 )
         if np.any(np.isnan(final_results)):
@@ -200,15 +203,16 @@ class SubJobManager:
         acc_all = np.mean( results_eff )        
         return acc_all
 
-npart = 1000
-# [momentum, eta range, radiator, percent_dev_piKsep, percent_dev_acc]
-#TODO: update uncertainty estimates
+# increased default npart based on new uncertainty studies
+npart = 3000
+
 p_eta_scan = [    
-    #[6, [1.4,1.5], 0, 0.0, 0.0],
-    [15, [1.5,2.0], 0, 0.0, 0.0],
-    [15, [2.0,2.5], 0, 0.0, 0.0],
-    [45, [2.5,3.0], 1, 0.0, 0.0],
-    [45, [3.0,3.5], 1, 0.0, 0.0]
+    # [momentum, \eta range, radiator]
+    #[6, [1.4,1.5], 0],
+    [15, [1.5,2.0], 0],
+    [15, [2.0,2.5], 0],
+    [45, [2.5,3.0], 1],
+    [45, [3.0,3.5], 1]
 ]
 
 p_eta_scan_init = [    
@@ -246,5 +250,4 @@ if avgAcc < 0.35:
 # if results were okay, finish analyzing this design point
 manager.runJobs()
 manager.monitorJobs()
-
 manager.retrieveResults()
