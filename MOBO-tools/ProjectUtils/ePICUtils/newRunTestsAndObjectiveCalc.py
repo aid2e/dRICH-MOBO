@@ -53,8 +53,11 @@ class SubJobManager:
             loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
             setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
             workEicPath = os.environ['WORK_EIC']
+            print("flags: ")
+            print(self.lowEnergyObjectiveFlag)
+            print(self.highEnergyObjectiveFlag)
             file.write(f"source {workEicPath}/setup.sh\n")
-            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif")
+            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif {self.lowEnergyObjectiveFlag} {self.highEnergyObjectiveFlag}")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
@@ -217,12 +220,27 @@ class SubJobManager:
             full_status = full_status and status
         if full_status:
             with open(self.outname) as f:
-                low_RMSE = float(f.readline().strip())
-                high_RMSE = float(f.readline().strip())
-            if((low_RMSE < 0) or (high_RMSE < 0)):
-                manager.writeFailedObjectives()
-            else:
-                print(f"Results successfully aquired\n low RMSE: {low_RMSE}; high RMSE: {high_RMSE}")
+                if(self.run_high_energy_neutron_objective and self.run_low_energy_neutron_objective):
+                    low_RMSE = float(f.readline().strip())
+                    high_RMSE = float(f.readline().strip())
+                    if((low_RMSE < 0) or (high_RMSE < 0)):
+                        manager.writeFailedObjectives()
+                    else:
+                        print(f"Results successfully aquired\n low RMSE: {low_RMSE}; high RMSE: {high_RMSE}")   
+                elif(self.run_high_energy_neutron_objective):
+                    high_RMSE = float(f.readline().strip())
+                    if((high_RMSE < 0)):
+                        manager.writeFailedObjectives()
+                    else:
+                        print(f"Results successfully aquired\n high RMSE: {high_RMSE}")
+                elif(self.run_low_energy_neutron_objective):
+                    low_RMSE = float(f.readline().strip())
+                    if((low_RMSE < 0)):
+                        manager.writeFailedObjectives()
+                    else:
+                        print(f"Results successfully aquired\n low RMSE: {low_RMSE}")
+                else:
+                    print("No Neutron RMSE objectives")
         else:
             sys.exit(1)
         return
@@ -261,11 +279,13 @@ class SubJobManager:
 if __name__ == '__main__':
 
     npart = 500
-    p_scan = [1,5]
+    p_scan = [1] #if only using 1 objective, set that here
     
     #FOR DEBUGGING (should be true)
     run_neutron_objectives = True
-    run_mu_pi_objectives = False
+    run_low_energy_neutron_objective = False
+    run_high_energy_neutron_objective = True
+    run_mu_pi_objectives = True
     delete_root_files = True
     run_root_files = True
     #DEBUGGING SETTINGS END
@@ -277,6 +297,19 @@ if __name__ == '__main__':
     jobid = sys.argv[1]
 
     manager = SubJobManager(p_scan, npart, jobid,run_neutron_objectives,run_mu_pi_objectives)
+    
+    manager.run_high_energy_neutron_objective = run_high_energy_neutron_objective
+    manager.run_low_energy_neutron_objective = run_low_energy_neutron_objective
+    if(run_low_energy_neutron_objective == False):
+        manager.lowEnergyObjectiveFlag = "--lowEnergyObjective -1"
+    else:
+        manager.lowEnergyObjectiveFlag = "--lowEnergyObjective 1"
+        
+    if(run_high_energy_neutron_objective == False):
+        manager.highEnergyObjectiveFlag = "--highEnergyObjective -1"
+    else:
+        manager.highEnergyObjectiveFlag = "--highEnergyObjective 1"
+    
     print("Starting overlap check")
     noverlaps = manager.checkOverlap()
     print("finished overlap check")
