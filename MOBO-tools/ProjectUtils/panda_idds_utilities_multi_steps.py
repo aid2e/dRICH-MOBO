@@ -5,7 +5,8 @@ import getpass
 import json
 import uncertainties
 import math
-import os
+import json
+import os,sys
 import pandas as pd
 import numpy as np
 # import shutil
@@ -95,7 +96,7 @@ def run_func_simreco(parameters, job_id, p_eta_point, particle, num_particles=15
     print(f"============== {job_id} end of stderr ==============")
 
     if return_code != 0:
-        print("failed to run runTestsAndObjectiveCalc_local_sep.py")
+        print("failed to run runTestsAndObjectiveCalc_local_simreco.py")
 
     # copy the working directory out for debug
     # print(f"copying directory {os.getcwd()} to /tmp/wguan/test1/")
@@ -110,16 +111,25 @@ def run_func_simreco(parameters, job_id, p_eta_point, particle, num_particles=15
 def run_func_analy(parameters, job_id, p_eta_point, particle, num_particles=1500, input_file_name=None):
     print(f"start run_func, job_id: {job_id}")
 
-    print("start to create xml")
-    create_xml(parameters, job_id)
-    print("finished to create xml")
+    #print("start to create xml")
+    #create_xml(parameters, job_id)
+    #print("finished to create xml")
 
     # num_particles = 1500
     # num_particles = 1500
-
+    is_tuple = False
+    jfilename = "input_files.json"
     if input_file_name:
-        if isinstance(input_file_name, (list, tuple)):
+        is_tuple  = isinstance(input_file_name, (list, tuple))
+        if is_tuple:
             input_root_name = input_file_name[0]
+            with open(jfilename, "w") as f:
+                json.dump({"input_files":input_file_name},f)
+
+            with open('input_files.json','r') as f:
+                j_data = json.load(f)
+                print("Printing the JSON content ",j_data)
+            
         else:
             input_root_name = input_file_name
     else:
@@ -130,8 +140,11 @@ def run_func_analy(parameters, job_id, p_eta_point, particle, num_particles=1500
 
     shell_command = ["python3", str(os.environ["AIDE_HOME"]) + "/ProjectUtils/ePICUtils/" + "/runTestsAndObjectiveCalc_local_sep_analy.py",
                      str(job_id), str(num_particles), base64.b64encode(bytes(json.dumps(p_eta_point), 'ascii')), particle, input_root_name]
+    if is_tuple:
+        shell_command.append(jfilename)
     # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    commandout = subprocess.run(shell_command)
+    print("Shell Command ",shell_command)
+    commandout = subprocess.run(shell_command,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return_code = commandout.returncode
     # output = commandout.stdout.decode('utf-8')
     # error = commandout.stderr.decode("utf-8")
@@ -152,7 +165,7 @@ def run_func_analy(parameters, job_id, p_eta_point, particle, num_particles=1500
     print(f"============== {job_id} end of stderr ==============")
 
     if return_code != 0:
-        print("failed to run runTestsAndObjectiveCalc_local_sep.py")
+        print("failed to run runTestsAndObjectiveCalc_local_sep_analy.py")
 
     # copy the working directory out for debug
     # print(f"copying directory {os.getcwd()} to /tmp/wguan/test1/")
@@ -319,7 +332,7 @@ def get_job_param(name, p_eta_point, particle, n_particles, n_particles_per_job,
     output_root_name = output_root_name.replace("+", "_")
     input_dataset_name = input_dataset_name.replace("+", "_")
 
-    input_job_name = f'step1_analy_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
+    input_job_name = f'step2_analy_run_func_{job_id}_{particle}_{p}_{eta_min}_{eta_max}'
     output_log_dataset_name = f'user.{username}.{name}.{input_job_name}.$WORKFLOWID.log/'
     output_log_dataset_name = output_log_dataset_name.replace("+", "_")
 
@@ -343,10 +356,13 @@ class PanDAIDDSJobRunner(Runner):
 
         self.failed_result = -1
 
-        self.n_particles = 2000
-        self.n_particles_per_job = 1000
+        self.n_particles = 200
+        self.n_particles_per_job = 100
 
-        self.particles = ["pi+", "kaon+"]
+        #self.particles = ["pi+", "kaon+"]
+        self.particles = ["pi+"]
+        self.p_eta_points = [[15, [1.5, 2.0], 0, 0.02457205, 0.00878185]]
+        '''
         self.p_eta_points = [
             [15, [1.5, 2.0], 0, 0.02457205, 0.00878185],
             [15, [2.0, 2.5], 0, 0.01871374, 0.00916126],
@@ -355,10 +371,10 @@ class PanDAIDDSJobRunner(Runner):
             [40, [2.0, 2.5], 1, 0.01390604, 0.00350744],
             [40, [2.5, 3.5], 1, 0.01391206, 0.00349814]
         ]
+        '''
 
-        self.n_particles = 200
-        self.n_particles_per_job = 100
-
+        #self.n_particles = 200
+        #self.n_particles_per_job = 100
         """
         self.particles = ["pi+", "kaon+"]
         self.p_eta_points = [
@@ -376,7 +392,6 @@ class PanDAIDDSJobRunner(Runner):
         try:
             ret = self.run_local(trial)
             print(f"run trail {trial.index} result: {ret}")
-            return ret
         except Exception as ex:
             print(f"PanDAIDDSJobRunner run exception: {ex} {traceback.format_exc()}")
         except:
@@ -408,7 +423,8 @@ class PanDAIDDSJobRunner(Runner):
                     # job_params, output_job_name, output_dataset_name, output_root_name, input_job_name = params
                     params_list.append(params)
             # params_list.append([arm.parameters, job_id])
-        # print(params_list)
+        print("*********Printing the params list************************ ")
+        print(params_list)
 
         self.transforms[trial.index] = {}
         # self.transforms[trial.index][self.retries] = {}
@@ -465,11 +481,11 @@ class PanDAIDDSJobRunner(Runner):
             print(f"trial {trial.index}: create a task: ({step2_w.internal_id}) {step2_w}")
             self.transforms[trial.index][input_job_name][self.retries] = {'tf_id': None, 'work': step2_w, 'results': None, 'status': 'new'}
 
-            print("submit step1 work")
+            print("submit step2 work")
             step2_tf_id = step2_w.submit()
             print(f"trial {trial.index} step2 work {step2_w.internal_id} {input_job_name} transform id: {step2_tf_id}")
             if not step2_tf_id:
-                raise Exception("Failed to submit work to PanDA")
+                raise Exception("Failed to submit step 2 work to PanDA")
 
             step2_w.init_async_result()
 

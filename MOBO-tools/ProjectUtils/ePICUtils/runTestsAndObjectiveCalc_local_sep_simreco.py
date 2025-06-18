@@ -168,8 +168,8 @@ class SubJobManager:
         self.final_job_result = {}
 
     def checkOverlap(self):
+        #shellcommand = [os.path.join(self.dir_path, "overlap_wrapper_job_local.sh"), str(self.job_id)]
         shellcommand = [os.path.join(self.dir_path, "overlap_wrapper_job_local.sh"), str(self.job_id)]
-
         logging.info("SubJobManager ++++++ checkOverlap +++++++")
         logging.info(f"SubJobManager command: {shellcommand}")
         commandout = subprocess.run(shellcommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -210,7 +210,8 @@ class SubJobManager:
                 eta_max = p_eta_point[1][1]
                 radiator = p_eta_point[2]
 
-                shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_simreco.sh"),
+                #shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_simreco.sh"),
+                shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_simreco_fake.sh"),
                                  str(p), str(eta_min), str(eta_max), str(self.n_part), str(radiator), self.job_id, particle, self.output_root_name]
                 logging.info(f"Job No.{num_jobs} SubJobManager command: {shell_command}")
                 # num_jobs += 1
@@ -317,7 +318,7 @@ def run(jobid, npart, p_eta_point, particle, output_name):
 
     manager = SubJobManager(p_eta_point, particle, npart, jobid, output_name)
     noverlaps = manager.checkOverlap()
-
+    #noverlaps = 1
     if noverlaps != 0:
         # OVERLAP OR ERROR, return -1 for all objectives
         logging.info(f"noverlaps: {noverlaps}, overlaps found, exiting trial")

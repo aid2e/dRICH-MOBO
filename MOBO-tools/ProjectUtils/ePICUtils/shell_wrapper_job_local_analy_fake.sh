@@ -1,11 +1,16 @@
 #!/bin/bash
 
 
-if [ "$#" -ne 8 ]; then
-    echo "Usage: $0 <p> <etamin> <etamax> <n particles> <radiator> <job id> <particle> <input_name>"
+if [ "$#" -lt 8 ] || [ "$#" -gt 9 ]; then
+    echo "Usage: $0 <p> <etamin> <etamax> <n particles> <radiator> <job id> <particle> <input_name> [json_filename (optional)]"
     exit 1
 fi
 
+JSON_FNAME="blaa"
+#if there are 9 arguments make 9th argument name of json file  JSON_FNAME
+if [ "$#" -eq 9 ]; then
+    JSON_FNAME="$9"
+fi
 
 current_dir=$(pwd)
 
@@ -24,8 +29,8 @@ source $AIDE_HOME/load_epic.sh
 
 echo "shell_wrapper_job dRICHAna_fake"
 
-echo $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna_fake $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
-$AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna_fake $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5
+echo $AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna_fake $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5 $JSON_FNAME
+$AIDE_HOME/ProjectUtils/ePICUtils/dRICHAna_fake $8 recon_scan_$6_$7_p_$1_eta_$2_$3.txt $AIDE_WORKDIR/log/results/ $5 $JSON_FNAME
 
 EOF
 

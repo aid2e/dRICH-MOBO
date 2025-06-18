@@ -137,13 +137,14 @@ def run_command_with_timeout(command, timeout=600, stdout=sys.stdout, stderr=sys
 
 
 class SubJobManager:
-    def __init__(self, p_eta_point, particle, n_part, job_id, input_name):
+    def __init__(self, p_eta_point, particle, n_part, job_id, input_name,json_fname=None):
         self.p_eta_point = p_eta_point
         self.p_eta_points = [p_eta_point]
         self.particle = particle
         self.particles = [particle]
         self.input_name = input_name
-
+        self.json_fname = json_fname
+        
         self.n_part = n_part
         self.job_id = job_id
         # self.outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "drich-mobo-out_{}.txt".format(jobid)
@@ -164,31 +165,6 @@ class SubJobManager:
         self.final_job_status = {}
         self.final_job_result = {}
 
-    def checkOverlap(self):
-        shellcommand = [os.path.join(self.dir_path, "overlap_wrapper_job_local.sh"), str(self.job_id)]
-
-        logging.info("SubJobManager ++++++ checkOverlap +++++++")
-        logging.info(f"SubJobManager command: {shellcommand}")
-        commandout = subprocess.run(shellcommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = commandout.stdout.decode('utf-8')
-        error = commandout.stderr.decode('utf-8')
-        logging.info("SubJobManager output:")
-        logging.info(output)
-        logging.info("SubJobManager error:")
-        logging.info(error)
-        logging.info("SubJobManager ++++++ end checkOverlap +++++++")
-
-        lines = output.split('\n')
-        last_line = lines[-2] if lines else None
-        if last_line:
-            line_split = last_line.split()
-            if len(line_split) == 1:
-                return int(line_split[0])
-            else:
-                return -1
-        else:
-            return -1
-        return -1
 
     def runJobs(self):
         logging.info("SubJobManager ++++++ runJobs +++++++")
@@ -206,8 +182,9 @@ class SubJobManager:
                 eta_min = p_eta_point[1][0]
                 eta_max = p_eta_point[1][1]
                 radiator = p_eta_point[2]
-                shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_analy.sh"),
-                                 str(p), str(eta_min), str(eta_max), str(self.n_part), str(radiator), self.job_id, particle, self.input_name]
+                #shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_analy.sh"),
+                shell_command = [os.path.join(self.dir_path, "shell_wrapper_job_local_analy_fake.sh"),
+                                 str(p), str(eta_min), str(eta_max), str(self.n_part), str(radiator), self.job_id, particle, self.input_name, self.json_fname]
                 logging.info(f"Job No.{num_jobs} SubJobManager command: {shell_command}")
                 # num_jobs += 1
                 # commandout = subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -271,7 +248,7 @@ class SubJobManager:
         return num_done, total
 
 
-def run(jobid, npart, p_eta_point, particle, input_name):
+def run(jobid, npart, p_eta_point, particle, input_name,json_fname=None):
     # npart = 1500
     # npart = 2
     # [momentum, eta range, radiator, dev_piKsep, dev_acc]
@@ -311,21 +288,8 @@ def run(jobid, npart, p_eta_point, particle, input_name):
     ]
     '''
 
-    manager = SubJobManager(p_eta_point, particle, npart, jobid, input_name)
+    manager = SubJobManager(p_eta_point, particle, npart, jobid, input_name, json_fname)
     
-    """
-    noverlaps = manager.checkOverlap()
-
-    if noverlaps != 0:
-        # OVERLAP OR ERROR, return -1 for all objectives
-        logging.info(f"noverlaps: {noverlaps}, overlaps found, exiting trial")
-        # results = np.array([-1 for i in range(len(p_eta_scan))])
-        # np.savetxt(manager.output_name, results)
-        manager.writeFailedObjectives()
-        sys.exit(0)
-
-    logging.info("no overlaps, starting momentum/eta scan jobs")
-    """
 
     manager.runJobs()
     # manager.monitorJobs()
@@ -346,20 +310,23 @@ def run(jobid, npart, p_eta_point, particle, input_name):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 6:
-        logging.error(f"number of arguments ({len(sys.argv)}) is not 5, exit 1")
+
+    if not(6<= len(sys.argv)<=7):
+        logging.error(f"Number of arguments should be 6 or 7 and not {len(sys.argv)}, exit 1")
         sys.exit(1)
+
 
     jobid = sys.argv[1]
     npart = int(sys.argv[2])
     p_eta_point = sys.argv[3]
     particle = sys.argv[4]
     input_name = sys.argv[5]
+    json_fname = sys.argv[6] if len(sys.argv)==7 else None
 
     try:
         p_eta_point = json.loads(base64.b64decode(p_eta_point).decode("utf-8"))
-        run(jobid, npart, p_eta_point, particle, input_name)
+        run(jobid, npart, p_eta_point, particle, input_name,json_fname)
     except Exception as ex:
-        logging.error(f"failed to run: {ex}")
+        logging.error(f"RunTestsAndObjectiveCalc_local_sep_analy.py: Failed to run: {ex}")
         logging.error(traceback.format_exc())
         sys.exit(1)
