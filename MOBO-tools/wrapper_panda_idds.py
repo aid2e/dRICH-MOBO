@@ -218,6 +218,7 @@ if __name__ == "__main__":
     print(f"BATCH_SIZE_MOBO: {BATCH_SIZE_MOBO}")
     print(f"N_SOBOL: {N_SOBOL}")
     print(f"N_MOBO: {N_MOBO}")
+
     if args.backend == 'slurm':
         # experiment with custom slurm runner
         experiment = build_experiment_slurm(search_space, optimization_config, SlurmJobRunner())
@@ -301,16 +302,31 @@ if __name__ == "__main__":
             ),
         ]
     )
+    scheduler = (
+        Scheduler.from_stored_experiment(
+            experiment_name=experiment_name,
+            db_settings=db_settings,
+            options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
+        )
+        if resume_experiment
+        else Scheduler(
+            experiment=experiment,
+            generation_strategy=gen_strategy,
+            options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
+            db_settings=db_settings,
+        )
+    )
+
     # Build or resume scheduler
     if resume_experiment:
        # Try to load experiment from DB
        print(f"[INFO] Resuming experiment '{experiment_name}'")
-       scheduler = Scheduler.from_stored_experiment(
-           experiment_name=experiment_name,
-           db_settings=db_settings,
-           options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
-       )
-       #Dump the generation startegy staep to if any failed trials
+       #scheduler = Scheduler.from_stored_experiment(
+       #    experiment_name=experiment_name,
+       #    db_settings=db_settings,
+       #    options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
+       #)
+       #Dump the generation startegy step to if any failed trials
        gs = scheduler.generation_strategy
 
        print(f"Current step index: {getattr(gs, '_curr', None).index if getattr(gs, '_curr', None) else 'Unknown'}")
@@ -325,17 +341,6 @@ if __name__ == "__main__":
        for i, step in enumerate(gs._steps):
            model_name = step.model.__name__ if hasattr(step.model, "__name__") else str(step.model)
            print(f"Step {i}: model={model_name}, target_trials={step.num_trials}, trials_run={step_counts.get(i, 0)}")
-    else:
-        #except ExperimentNotFoundError:
-       print(f"[INFO] No experiment named '{experiment_name}' found in DB — creating new one.")
-       experiment = build_experiment_local(search_space, optimization_config, LocalJobRunner())
-       scheduler = Scheduler(
-           experiment=experiment,
-           generation_strategy=gen_strategy,
-           options=SchedulerOptions(max_pending_trials=BATCH_SIZE, logging_level=logging.DEBUG),
-           db_settings=db_settings,
-       )
-       _save_experiment(experiment, encoder=bundle.encoder, decoder=bundle.decoder)
 
 
     print("before run_n_trials")
