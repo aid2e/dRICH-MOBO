@@ -17,3 +17,10 @@ The current MOBO wrapper script can be run using
 Currently, this by default utilizes a slurm trial scheduler which will submit each trial as a slurm job, with each simulation point carried out in additional slurm jobs (configured for the Duke compute cluster, but partitions etc. can be edited to reflect any other cluster in ProjectUtils/slurm_utilities.py and ProjectUtils/ePICUtils/runTestsAndObjectiveCalc.py). joblib and PanDA/iDDS wrappers will be under development.
 
 ```wrapper.py``` is currently out of date with other pieces of the workflow, such as editing the dRICH geometry, and will fail if used.
+
+How to test mu/pi separation (without running mobo)
+1. source ~/.mobo-bashrc
+2. conda activate dRICH-MOBO
+3. source MOBO-tools/setup.sh
+4. python3 ProjectUtils/ePICUtils/runTestsAndObjectives.py 0
+   1. use the jobid of whichever geometry you want to use (klmws_only_0.xml)

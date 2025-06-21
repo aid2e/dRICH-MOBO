@@ -1,17 +1,34 @@
+'''
+How to test mu/pi separation (without running mobo)
+1. source ~/.mobo-bashrc
+2. conda activate dRICH-MOBO
+2.5 cd MOBO-tools
+3. source MOBO-tools/setup.sh
+3.5 set flags in main function of newRunTestsAndObjectives.py
+4. python3 ProjectUtils/ePICUtils/newRunTestsAndObjectives.py 10001
+   1. use the jobid of whichever geometry you want to use (klmws_only_0.xml)
+
+'''
+
 import os, sys, subprocess, time, uproot, math, numpy as np, awkward as ak, xml.etree.ElementTree as ET
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score,roc_curve
 import dd4hep
 import ROOT
 from collections import defaultdict
 import matplotlib.pyplot as plot
 class ROCAUC_calc:
-    def __init__(self, p_points, n_part, job_id):
+    def __init__(self, p_points, n_part, job_id,plot_roc_curves = False, plot_path = "./"):
         self.p_points = p_points
         self.n_part = n_part
         self.job_id = job_id
+        self.plot_roc_curves = plot_roc_curves
+        self.plot_path = plot_path
         self.outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "klm-mobo-out_{}.txt".format(jobid)
         self.slurm_job_ids = []
-        self.load_geometry("{}/{}_{}.xml".format(os.environ["DETECTOR_PATH"],os.environ["DETECTOR_CONFIG"],self.job_id))
+        if(self.job_id < 10000):
+            self.load_geometry("{}/{}_{}.xml".format(os.environ["DETECTOR_PATH"],os.environ["DETECTOR_CONFIG"],self.job_id))
+        else:
+            self.load_geometry("{}/{}.xml".format(os.environ["DETECTOR_PATH"],os.environ["DETECTOR_CONFIG"]))
         self.theta_min = 80
         self.theta_max = 100
         self.barrel_length = 1500 # length of the barrel along the z-axis
@@ -21,8 +38,10 @@ class ROCAUC_calc:
         lcdd.fromXML(compactFile)
         print(f"loaded compact file: {compactFile}")
         self.lcdd = lcdd
-        
-        root = ET.parse("{}/compact/pid/klmws_{}.xml".format(os.environ['DETECTOR_PATH'],self.job_id)).getroot()
+        if(self.job_id < 10000):
+            root = ET.parse("{}/compact/pid/klmws_{}.xml".format(os.environ['DETECTOR_PATH'],self.job_id)).getroot()
+        else:
+            root = ET.parse("{}/compact/pid/klmws.xml".format(os.environ['DETECTOR_PATH'],self)).getroot()
         self.n_layers = int(root.find(".//constant[@name='HcalScintillatorNbLayers']").get('value')) # number of superlayers
     
     
@@ -100,7 +119,7 @@ class ROCAUC_calc:
         return layers_traveled, layer_counts
 
     # return the area under the ROC curve for discriminating between muons and pions
-    def calcROCauc(self, mu_f, pi_f):
+    def calcROCauc(self, mu_f, pi_f,p):
         mu_layers_traveled, mu_layer_counts = self.layer_calc_cellID(mu_f,"mu")
         pi_layers_traveled, pi_layer_counts = self.layer_calc_cellID(pi_f,"pi")
 
@@ -114,7 +133,27 @@ class ROCAUC_calc:
 
         # calculate ROC AUC score
         roc_score = roc_auc_score(pid_actual, pid_model)
+        if(self.plot_roc_curves):
+            # Calculate ROC curve
+            fpr, tpr, thresholds = roc_curve(pid_actual, pid_model)
+            print(f"fpr: {fpr}")
+            print(f"tpr: {tpr}")
+            print(f"thresholds: {thresholds}")
 
+            # Create the plot
+            plot.figure()
+            plot.plot(fpr, tpr, color='blue', lw=2, 
+                    label=f'ROC curve (area = {roc_score:.2f})')
+#             plot.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', 
+#                     label='Random classifier')
+            plot.xlim([0.0, 1.0])
+            plot.ylim([0.0, 1.05])
+            plot.xlabel('False Positive Rate', fontsize = 20)
+            plot.ylabel('True Positive Rate', fontsize = 20)
+#             plot.title('Receiver Operating Characteristic (ROC) Curve')
+            plot.legend(loc="lower right",fontsize = 20)
+            plot.grid(True)
+            plot.savefig(self.plot_path + f"roc_curve_{p}GeV.pdf")
         return roc_score
     def retrieveResults_mupi(self):
         # when results finished, retrieve analysis script outputs
@@ -124,7 +163,8 @@ class ROCAUC_calc:
         for i, p_point in enumerate(self.p_points):
             roc_score = self.calcROCauc(
                 mu_f = os.path.join(os.environ['AIDE_HOME'], f'log/sim_files/scan_{self.job_id}_mu-_p_{p_point}.edm4hep.root'),
-                pi_f = os.path.join(os.environ['AIDE_HOME'], f'log/sim_files/scan_{self.job_id}_pi-_p_{p_point}.edm4hep.root')
+                pi_f = os.path.join(os.environ['AIDE_HOME'], f'log/sim_files/scan_{self.job_id}_pi-_p_{p_point}.edm4hep.root'),
+                p = p_point
             )
             roc_scores.append(roc_score)
         
@@ -147,11 +187,11 @@ if __name__ == '__main__':
     outname = sys.argv[3]
     p_points = []
     for i, arg in enumerate(sys.argv):
-        if(i <=3):
+        if(i <=5):
             continue
         else:
             p_points.append(int(sys.argv[i]))
-    rocauc_calc = ROCAUC_calc(p_points, n_part, jobid)
+    rocauc_calc = ROCAUC_calc(p_points, n_part, jobid,plot_roc_curves = sys.argv[4], plot_path = sys.argv[5])
 #     try:
     rocauc_calc.retrieveResults_mupi()
     print("Successfully calculated ROC AUC and wrote to result file")

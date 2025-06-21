@@ -6,10 +6,12 @@ import os, sys, subprocess, time, uproot, math, numpy as np, awkward as ak, xml.
 # 4. store all relevant results in klm-mobo-out_{jobid}.txt
 
 class SubJobManager:
-    def __init__(self, p_points, n_part, job_id,run_neutron_objectives,run_mu_pi_objectives):
+    def __init__(self, p_points, n_part, job_id,run_neutron_objectives,run_mu_pi_objectives,plot_roc_curves, roc_curve_plot_path):
         self.p_points = p_points
         self.n_part = n_part
         self.job_id = job_id
+        self.plot_roc_curves = plot_roc_curves
+        self.roc_curve_plot_path = roc_curve_plot_path
         self.outname = str(os.environ["AIDE_HOME"])+"/log/results/"+ "klm-mobo-out_{}.txt".format(jobid)
         self.slurm_job_ids = []
         self.rocauc_slurm_job_ids = []
@@ -127,7 +129,7 @@ class SubJobManager:
             file.write("cat << EOF | {}/eic-shell\n".format(os.environ['EIC_SHELL_HOME']))
             file.write("source ./setup.sh\n")
             file.write("source ./load_epic.sh\n")
-            file.write("python3 " + str(os.environ["EPIC_MOBO_UTILS"])+"ROCAUC.py {} {} {} {} \n".format(self.n_part,self.job_id,self.outname,p_points_string))
+            file.write("python3 " + str(os.environ["EPIC_MOBO_UTILS"])+"ROCAUC.py {} {} {} {} {} {} \n".format(self.n_part,self.job_id,self.outname,self.plot_roc_curves,self.roc_curve_plot_path,p_points_string))
             file.write("EOF\n")
         return filename
     def runJobs_ROCAUC(self):
@@ -278,16 +280,19 @@ class SubJobManager:
 
 if __name__ == '__main__':
 
-    npart = 500
-    p_scan = [1] #if only using 1 objective, set that here
+    npart = 1000
+    p_scan = [1, 5] #if only using 1 objective, set that here
     
     #FOR DEBUGGING (should be true)
     run_neutron_objectives = True
-    run_low_energy_neutron_objective = False
+    run_low_energy_neutron_objective = True
     run_high_energy_neutron_objective = True
     run_mu_pi_objectives = True
     delete_root_files = True
     run_root_files = True
+    run_overlap_check = True
+    plot_roc_curves = False
+    roc_curve_plot_path = "/hpc/group/vossenlab/rck32/eic/dRICH-MOBO/MOBO-tools/log/roc_curve_plots/June_18_baseline_test_"
     #DEBUGGING SETTINGS END
     
     # format momenta into strings
@@ -296,7 +301,7 @@ if __name__ == '__main__':
 
     jobid = sys.argv[1]
 
-    manager = SubJobManager(p_scan, npart, jobid,run_neutron_objectives,run_mu_pi_objectives)
+    manager = SubJobManager(p_scan, npart, jobid,run_neutron_objectives,run_mu_pi_objectives,plot_roc_curves,roc_curve_plot_path)
     
     manager.run_high_energy_neutron_objective = run_high_energy_neutron_objective
     manager.run_low_energy_neutron_objective = run_low_energy_neutron_objective
@@ -311,7 +316,10 @@ if __name__ == '__main__':
         manager.highEnergyObjectiveFlag = "--highEnergyObjective 1"
     
     print("Starting overlap check")
-    noverlaps = manager.checkOverlap()
+    if(run_overlap_check):
+        noverlaps = manager.checkOverlap()
+    else: 
+        noverlaps = 0
     print("finished overlap check")
     if noverlaps != 0:
         # OVERLAP OR ERROR, return -1 for all objectives
