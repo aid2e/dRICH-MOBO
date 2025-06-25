@@ -287,7 +287,7 @@ if __name__ == '__main__':
     run_neutron_objectives = True
     run_low_energy_neutron_objective = True
     run_high_energy_neutron_objective = True
-    run_mu_pi_objectives = True
+    run_mu_pi_objectives = False
     delete_root_files = True
     run_root_files = True
     run_overlap_check = True

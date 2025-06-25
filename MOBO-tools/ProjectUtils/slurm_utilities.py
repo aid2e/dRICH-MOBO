@@ -24,9 +24,9 @@ class SlurmQueueClient:
     totaljobs = 0
     '''USER EDIT'''
     objectives = [
-#               "low_RMSE",
+              "low_RMSE",
              "high_RMSE",
-             "sepMuPi_1GeV"#,
+#              "sepMuPi_1GeV"#,
 #              "sepMuPi_5GeV"#,
 #              "outer_radius"
                   ]
