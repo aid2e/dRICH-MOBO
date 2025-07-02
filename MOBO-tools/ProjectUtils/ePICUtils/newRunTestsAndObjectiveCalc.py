@@ -59,7 +59,7 @@ class SubJobManager:
             print(self.lowEnergyObjectiveFlag)
             print(self.highEnergyObjectiveFlag)
             file.write(f"source {workEicPath}/setup.sh\n")
-            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif {self.lowEnergyObjectiveFlag} {self.highEnergyObjectiveFlag}")
+            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref June_25_linear_ratio_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif {self.lowEnergyObjectiveFlag} {self.highEnergyObjectiveFlag}")
         return filename
     def makeSlurmScript_mupi(self, p_point):
         p = p_point           
@@ -281,13 +281,13 @@ class SubJobManager:
 if __name__ == '__main__':
 
     npart = 1000
-    p_scan = [1, 5] #if only using 1 objective, set that here
+    p_scan = [1] #if only using 1 objective, set that here
     
     #FOR DEBUGGING (should be true)
     run_neutron_objectives = True
-    run_low_energy_neutron_objective = True
+    run_low_energy_neutron_objective = False
     run_high_energy_neutron_objective = True
-    run_mu_pi_objectives = False
+    run_mu_pi_objectives = True
     delete_root_files = True
     run_root_files = True
     run_overlap_check = True

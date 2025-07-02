@@ -8,6 +8,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
 #SBATCH --mail-user=rck32@duke.edu
+#SBATCH -t 3-00:00:00
 echo began job
 source ~/.mobo-bashrc
 source run_optimization.sh

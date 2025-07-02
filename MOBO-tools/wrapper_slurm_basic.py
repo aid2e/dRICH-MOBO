@@ -146,10 +146,10 @@ if __name__ == "__main__":
     '''USER EDIT'''
     #Place objective names here
     names = [
-        "low_RMSE",
-             "high_RMSE",
-#              "sepMuPi_1GeV"#,
-#              "sepMuPi_5GeV"#,
+#       "low_RMSE",
+              "high_RMSE",
+              "sepMuPi_1GeV"#,
+#             "sepMuPi_5GeV"#,
 #              "outer_radius"
              ]  
     '''USER EDIT END'''
@@ -170,8 +170,8 @@ if __name__ == "__main__":
     '''USER EDIT'''
     # Create threshold for each objective
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=0.75, relative=False), #high energy RMSE
-        ObjectiveThreshold(metric=metrics[1], bound=0.6, relative=False)#, #low energy RMSE
+        ObjectiveThreshold(metric=metrics[0], bound=0.75, relative=False), #high energy RMSE: 0.75,low energy RMSE: 0.6, 5GeV muID: 0.77, 1GeV muID: 0.83
+        ObjectiveThreshold(metric=metrics[1], bound=0.83, relative=False)#, #
 #         ObjectiveThreshold(metric=metrics[2], bound=0.6, relative=False),
 #         ObjectiveThreshold(metric=metrics[3], bound=0.6, relative=False)
         ]
@@ -246,10 +246,10 @@ if __name__ == "__main__":
 #     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.9076645164516451]
 #     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765,0.8990445650853882, 0.817]
 #     status_quo_metric_vals = [0.46482974881438877,0.8990445650853882] # low energy rmse and low energy mu/pi
-#     status_quo_metric_vals = [0.46482974881438877,0.817] # low energy rmse and high energy mu/pi
+    status_quo_metric_vals = [0.46482974881438877,0.817] # low energy rmse and high energy mu/pi
 #     status_quo_metric_vals = [0.6889291713594765,0.8990445650853882] # high energy rmse and low energy mu/pi
 #     status_quo_metric_vals = [0.46482974881438877,0.6889291713594765] #low and high energy rmse
-    status_quo_metric_vals = [0.5174475139446225,0.6777484324457422] #low and high energy rmse June 22
+#     status_quo_metric_vals = [0.5174475139446225,0.6777484324457422] #low and high energy rmse June 22
 #     status_quo_metric_vals = [0.6889291713594765,0.817] #high energy RMSE and high energy my/pi
     '''USER EDIT END'''
     

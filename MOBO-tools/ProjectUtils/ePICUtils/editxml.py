@@ -54,12 +54,6 @@ def editGeom(param, value, jobid,num_layers,preshower_ratio,division_layer_numbe
     num_layers_status_quo_element = root.find(extra_params["num_layers"])
     steel_value = float(steel_element.get('value')[:-3])
     scint_value = float(scint_element.get('value')[:-3])
-#     print(f"steel_value: {steel_value}")
-#     print("num_layers_status_quo_element.get('value'):")
-#     print(num_layers_status_quo_element.get('value'))
-    
-#     print("type(num_layers_status_quo_element.get('value')):")
-#     print(type(num_layers_status_quo_element.get('value')))
     num_layers_status_quo_value = int(num_layers_status_quo_element.get('value'))
 
     if param == 'num_layers':
@@ -67,6 +61,18 @@ def editGeom(param, value, jobid,num_layers,preshower_ratio,division_layer_numbe
         element.set(elementToEdit,"{}".format(int(value)))
     elif param == 'division_layer_number':
         element.set(elementToEdit,"{}".format(int(value)))
+    elif param == 'steel_ratio':
+        total_per_layer = 55.5 + 20
+        steel_value = total_per_layer * value
+        scint_value = total_per_layer - steel_value
+#         print("Currently have (param, path, elementToEdit): ({},{},{})".format(param,path,elementToEdit))
+#         element.set(elementToEdit,"{}".format(int(value)))
+        
+        scint_element = root.find(extra_params["HcalScintillatorThickness"])
+        steel_element = root.find(extra_params["HcalSteelThickness"])
+        
+        scint_element.set("value","{}*mm".format(scint_value))        
+        steel_element.set("value","{}*mm".format(steel_value))   
     elif param == 'preshower_steel_value':
         # Set the preshower steel, don't touch scint
         element.set(elementToEdit,"{}*{}".format(value,units))
