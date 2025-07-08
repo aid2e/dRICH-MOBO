@@ -101,7 +101,9 @@ if __name__ == "__main__":
     detconfig = ReadJsonFile(args.detparameters)
     jsonFile = args.json_file
     profiler = args.profile
-    outdir = config["OUTPUT_DIR"]    
+    outdir = config["OUTPUT_DIR"]  
+    n_particles = config["n_particles"]
+    n_particles_per_job = config["n_particles_per_job"]
                 
     optimInfo = "optimInfo.txt" if not jsonFile else "optimInfo_continued.txt"
     if(not os.path.exists(outdir)):
@@ -237,7 +239,10 @@ if __name__ == "__main__":
             metric_clss={PanDAIDDSJobMetric: None}, runner_clss={PanDAIDDSJobRunner: None}
         )
     elif args.backend == 'panda_multi_steps':
-        experiment = build_experiment_pandaidds_mul(search_space, optimization_config, PanDAIDDSJobRunner_mul(name=args.name))
+        mul_experiment = PanDAIDDSJobRunner_mul(name=args.name)
+        mul_experiment.n_particles = n_particles
+        mul_experiment.n_particles_per_job = n_particles_per_job
+        experiment = build_experiment_pandaidds_mul(search_space, optimization_config, mul_experiment)
         register_runner(PanDAIDDSJobRunner_mul)
         register_metric(PanDAIDDSJobMetric_mul)
 

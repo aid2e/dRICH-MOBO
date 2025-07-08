@@ -356,7 +356,7 @@ class PanDAIDDSJobRunner(Runner):
 
         self.failed_result = -1
 
-        self.n_particles = 200
+        self.n_particles = 100
         self.n_particles_per_job = 100
 
         #self.particles = ["pi+", "kaon+"]
