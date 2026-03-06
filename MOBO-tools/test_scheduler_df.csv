@@ -1,3 +1,0 @@
-,trial_index,arm_name,trial_status,generation_method,is_feasible,high_RMSE,low_RMSE,preshower_steel_value,division_layer_number
-0,0,status_quo,COMPLETED,Manual,True,0.6777484324457422,0.5174475139446225,55.5,0
-1,1,1_0,COMPLETED,Sobol,True,0.7041566803824529,0.5558382664556275,14.271143943071365,5

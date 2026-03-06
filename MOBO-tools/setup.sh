@@ -28,5 +28,6 @@ export DETECTOR_PATH=$EPIC_HOME
 # export DETECTOR_CONFIG=epic_klmws_w_solenoid
 export DETECTOR_CONFIG=epic_klmws_only
 
+export ML_VENV_HOME='/hpc/group/vossenlab/rck32/ML_venv'
 export EPIC_MOBO_UTILS=$(pwd)/ProjectUtils/ePICUtils/
 export AIDE_HOME=$(pwd)

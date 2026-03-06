@@ -26,6 +26,8 @@ class SlurmQueueClient:
     objectives = [
               "low_RMSE",
              "high_RMSE",
+             "low_muID_auc",
+             "high_muID_auc"
 #              "sepMuPi_1GeV"#,
 #              "sepMuPi_5GeV"#,
 #              "outer_radius"
@@ -38,7 +40,7 @@ class SlurmQueueClient:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=10:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write(f"#SBATCH --output={jobdir}klm-mobo_{jobnum}.out\n")

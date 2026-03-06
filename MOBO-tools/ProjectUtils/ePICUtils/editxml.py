@@ -79,7 +79,12 @@ def editGeom(param, value, jobid,num_layers,preshower_ratio,division_layer_numbe
         postshower_steel_element = root.find(extra_params["postshower_steel_value"])
         postshower_steel_element.set("value","{}*{}".format(postshower_steel_per_layer,units))   
         
-        
+    elif param == 'steel_ratio':
+        total = 55.5 + 20.0
+        steel_amount = total * value
+        scint_amount = total - steel_amount
+        steel_element.set("value","{}*mm".format(steel_amount))
+        scint_element.set("value","{}*mm".format(scint_amount)) 
     elif param == 'preshower_steel_ratio':
         total = (55.5 + 20 + 0.3 * 2) * 14
         units = "mm"
