@@ -38,12 +38,13 @@ class SubJobManager:
         return -1    
     
     def makeSlurmScript(self):       
+        deleteDfs_string = "True" # Regular mode   
         filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}.slurm".format(self.job_id)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
-            file.write(f"#SBATCH --job-name=submit-workflow-klm-mobo-{self.job_id}\n")
+            file.write(f"#SBATCH --job-name=orch_sw_mobo_n_{self.job_id}\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=8:00:00\n")
             file.write("#SBATCH --output={}/klm-mobo-subjob_%x.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
@@ -59,53 +60,55 @@ class SubJobManager:
             print(self.lowEnergyObjectiveFlag)
             print(self.highEnergyObjectiveFlag)
             file.write(f"source {workEicPath}/setup.sh\n")
-            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref April_2_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs True --no-saveGif {self.lowEnergyObjectiveFlag} {self.highEnergyObjectiveFlag}")
+            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref n_sw_mobo_{self.job_id} --outFile {self.outname} --runNum {self.job_id} --chPath {MOBO_path} --deleteDfs {deleteDfs_string} --no-saveGif --no-classification --geo_config preshower {self.lowEnergyObjectiveFlag} {self.highEnergyObjectiveFlag}")
         return filename
-    def makeSlurmScript_mupi(self, p_point):
-        p = p_point           
-        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_p_{}.slurm".format(self.job_id,p)
+    def makeSlurmScript_data_production(self, particle):
+        """Generate SLURM script that runs submit_workflow.py --skipTraining for a given particle."""
+        particle_safe = particle.replace("+", "p").replace("-", "m")
+        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"jobconfig_{}_{}.slurm".format(self.job_id, particle_safe)
         with open(filename,"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=mu_pi_{}-klm-mobo\n".format(self.job_id))
+            file.write(f"#SBATCH --job-name=orch_sw_mobo_{particle_safe}_{self.job_id}-klm-mobo\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=8:00:00\n")
             file.write("#SBATCH --output={}/%x.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
             file.write("#SBATCH --error={}/%x.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
-            
-            file.write(str(os.environ["EPIC_MOBO_UTILS"])+"shell_wrapper_job.sh {} {} {} {} {} \n".format(p,self.n_part,self.theta_min,self.theta_max,self.job_id))
+            DETECTOR_PATH = os.environ['DETECTOR_PATH']
+            DETECTOR_CONFIG = os.environ['DETECTOR_CONFIG']
+            compactFileName = f"{DETECTOR_PATH}/{DETECTOR_CONFIG}_{self.job_id}.xml"
+            loadEpicPath = os.environ['AIDE_HOME'] + "/load_epic.sh"
+            setupPath = os.environ['AIDE_HOME'] + "/setup.sh"
+            workEicPath = os.environ['WORK_EIC']
+            MOBO_path = os.environ['AIDE_HOME']
+            run_name_pref = f"{particle_safe}_sw_mobo_{self.job_id}"
+            file.write(f"source {workEicPath}/setup.sh\n")
+            file.write(f"python3 {workEicPath}/slurm/submit_workflow.py --compactFile {compactFileName} --setupPath {setupPath} --loadEpicPath {loadEpicPath} --run_name_pref {run_name_pref} --runNum {self.job_id} --chPath {MOBO_path} --particle {particle} --skipTraining --no-classification --geo_config preshower")
         return filename
+    def _submit_slurm_file(self, slurm_file):
+        """Submit a SLURM script and return the job ID (or -1 on failure)."""
+        commandout = subprocess.run(["sbatch", slurm_file], stdout=subprocess.PIPE)
+        output = commandout.stdout.decode('utf-8')
+        line_split = output.split()
+        if len(line_split) == 4:
+            return int(line_split[3])
+        else:
+            return -1
     
     def runJobs(self):
         if(self.run_mu_pi_objectives):
-            #mu pi separation jobs
-            for p_point in self.p_points:
-                slurm_file = self.makeSlurmScript_mupi(p_point)                
-                shellcommand = ["sbatch",slurm_file]                
-                commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
-                output = commandout.stdout.decode('utf-8')
-                line_split = output.split()
-                if len(line_split) == 4:
-                    slurm_job_id = int(line_split[3])
-                    self.slurm_job_ids.append(slurm_job_id)
-                else:
-                    #slurm job submission failed, re-submit? or just count as failed?
-                    self.slurm_job_ids.append(-1)
+            # mu/pi data production jobs (sim + process + analyze, no training)
+            for particle in ["mu-", "pi+"]:
+                slurm_file = self.makeSlurmScript_data_production(particle)
+                slurm_job_id = self._submit_slurm_file(slurm_file)
+                self.slurm_job_ids.append(slurm_job_id)
+                print(f"Submitted {particle} data production job: {slurm_job_id}")
         if(self.run_neutron_objectives):
             print("running neutron objective job")
-            # neutral hadron energy resolution jobs
-            slurm_file = self.makeSlurmScript()                
-            shellcommand = ["sbatch",slurm_file]                
-            commandout = subprocess.run(shellcommand,stdout=subprocess.PIPE)
-            output = commandout.stdout.decode('utf-8')
-            line_split = output.split()
-            if len(line_split) == 4:
-                slurm_job_id = int(line_split[3])
-                self.slurm_job_ids.append(slurm_job_id)
-            else:
-                #slurm job submission failed, re-submit? or just count as failed?
-                self.slurm_job_ids.append(-1)
+            slurm_file = self.makeSlurmScript()
+            slurm_job_id = self._submit_slurm_file(slurm_file)
+            self.slurm_job_ids.append(slurm_job_id)
         return
     
     def create_ROCAUC_job_file(self):
@@ -120,7 +123,7 @@ class SubJobManager:
             file.write("#!/bin/bash\n")
             file.write("#SBATCH --job-name=ROCAUC_{}_klm-mobo\n".format(self.job_id))
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=8:00:00\n")
             file.write("#SBATCH --output={}/%x.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
@@ -211,6 +214,53 @@ class SubJobManager:
                 self.rocauc_final_job_status = statuses
             else:
                 time.sleep(30)
+                
+    def createClassificationTrainingJob(self):
+        """Generate SLURM script to train the GNN classifier on mu-/pi+ CSVs."""
+        deleteDfs_string = "--deleteDfs"
+        # deleteDfs_string = "" #DEBUGGING
+        filename = str(os.environ["AIDE_HOME"])+"/slurm_scripts/"+"classifier_{}.slurm".format(self.job_id)
+        workEicPath = os.environ['WORK_EIC']
+        ML_VENV_HOME = os.environ['ML_VENV_HOME']
+        MOBO_path = os.environ['AIDE_HOME']
+        model_dir = f"{workEicPath}/macros/Timing_estimation/models/classifier_{self.job_id}/"
+        # These prefixes must match the run_name_pref pattern used in makeSlurmScript_data_production
+        inputDataPrefMu = f"{workEicPath}/macros/Timing_estimation/data/df/mum_sw_mobo_{self.job_id}_500events_run_{self.job_id}_"
+        inputDataPrefPi = f"{workEicPath}/macros/Timing_estimation/data/df/pip_sw_mobo_{self.job_id}_500events_run_{self.job_id}_"
+        with open(filename, "w") as file:
+            file.write("#!/bin/bash\n")
+            file.write(f"#SBATCH --job-name=classifier_{self.job_id}-klm-mobo\n")
+            file.write("#SBATCH --account=vossenlab\n")
+            file.write("#SBATCH --partition=scavenger-gpu\n")
+            file.write("#SBATCH --mem=40G\n")
+            file.write("#SBATCH --gpus=1\n")
+            file.write("#SBATCH --time=00:45:00\n")
+            file.write("#SBATCH --output={}/%x.out\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
+            file.write("#SBATCH --error={}/%x.err\n".format(str(os.environ["AIDE_HOME"])+"/log/job_output"))
+            file.write(f"source {ML_VENV_HOME}/bin/activate\n")
+            file.write(f"python3 {workEicPath}/macros/Timing_estimation/train_GNN_classifier.py --inputDataPrefMu {inputDataPrefMu} --inputDataPrefPi {inputDataPrefPi} --numDfs 20 --resultsFilePath {self.outname} --modelPath {model_dir} --runName mobo_{self.job_id}_classifier {deleteDfs_string}\n")
+        return filename
+    def runClassificationTrainingJob(self):
+        """Submit the classification training SLURM job."""
+        slurm_file = self.createClassificationTrainingJob()
+        slurm_job_id = self._submit_slurm_file(slurm_file)
+        self.classifier_slurm_job_id = slurm_job_id
+        print(f"Submitted classification training job: {slurm_job_id}")
+        return
+    def monitorClassificationJob(self):
+        """Poll until the classification training job completes."""
+        complete = False
+        while not complete:
+            status = self.get_job_status(self.classifier_slurm_job_id)
+            if status == 1:
+                print("Classification training job completed successfully")
+                complete = True
+            elif status == -1:
+                print("Classification training job failed")
+                complete = True
+            else:
+                time.sleep(30)
+        return status
     def writeFailedObjectives(self):
         raise Exception("Writing failed objectives error")
     
@@ -281,18 +331,18 @@ class SubJobManager:
 if __name__ == '__main__':
 
     npart = 1000
-    p_scan = [1, 5] #if only using 1 objective, set that here
+    p_scan = [] #if only using 1 objective, set that here
     
     #FOR DEBUGGING (should be true)
     run_neutron_objectives = True
     run_low_energy_neutron_objective = True
     run_high_energy_neutron_objective = True
-    run_mu_pi_objectives = False
+    run_mu_pi_objectives = True
     delete_root_files = True
     run_root_files = True
     run_overlap_check = True
     plot_roc_curves = False
-    roc_curve_plot_path = "/hpc/group/vossenlab/rck32/eic/dRICH-MOBO/MOBO-tools/log/roc_curve_plots/June_18_baseline_test_"
+    roc_curve_plot_path = ""
     #DEBUGGING SETTINGS END
     
     # format momenta into strings
@@ -329,13 +379,19 @@ if __name__ == '__main__':
         manager.writeFailedObjectives()
         sys.exit(0)
 
-    print("no overlaps, starting momentum scan jobs")
+        print("no overlaps, starting data production jobs")
+    # Determine expected number of jobs: mu- data + pi+ data (if mu_pi) + neutron (if neutron)
+    num_expected_jobs = 0
+    if(run_mu_pi_objectives):
+        num_expected_jobs += 2
+    if(run_neutron_objectives):
+        num_expected_jobs += 1
 
     if(run_root_files):
         manager.runJobs()
         manager.monitorJobs()
     else:
-        manager.final_job_status = [1,1]
+        manager.final_job_status = [1] * num_expected_jobs
     if np.sum(manager.final_job_status) <= 0:
         manager.writeFailedObjectives()
         print("something wrong with all jobs")
@@ -343,13 +399,6 @@ if __name__ == '__main__':
         if(manager.run_neutron_objectives):
             manager.retrieveResults()
         if(manager.run_mu_pi_objectives):
-            manager.runJobs_ROCAUC()
-            manager.monitorROCAUCJob()
+            manager.runClassificationTrainingJob()
+            manager.monitorClassificationJob()
         print("successfully retrieved results")
-    if((delete_root_files == True) and (manager.run_mu_pi_objectives == True)):
-        for p in p_scan:
-            for particle in ['mu-', 'pi-']:
-                filename = os.path.join(os.environ['AIDE_HOME'], f'log/sim_files/scan_{jobid}_{particle}_p_{p}.edm4hep.root')
-                if os.path.exists(filename):
-                    os.remove(filename)
-        
