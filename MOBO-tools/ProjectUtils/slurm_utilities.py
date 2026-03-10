@@ -24,10 +24,12 @@ class SlurmQueueClient:
     totaljobs = 0
     '''USER EDIT'''
     objectives = [
-#              "low_RMSE",
-              "high_RMSE",
-              "sepMuPi_1GeV"#,
-#             "sepMuPi_5GeV"#,
+              "low_RMSE",
+             "high_RMSE",
+             "low_muID_auc",
+             "high_muID_auc"
+#              "sepMuPi_1GeV"#,
+#              "sepMuPi_5GeV"#,
 #              "outer_radius"
                   ]
     '''USER EDIT END'''
@@ -36,13 +38,15 @@ class SlurmQueueClient:
         check_and_create_directory(jobdir)
         with open("{}jobconfig_{}.slurm".format(jobdir,jobnum),"w") as file:
             file.write("#!/bin/bash\n")
-            file.write("#SBATCH --job-name=klm-mobo\n")
+            file.write(f"#SBATCH --job-name=klm-mobo-trial-{jobnum}-runner\n")
             file.write("#SBATCH --account=vossenlab\n")
-            file.write("#SBATCH --partition=common\n")
+            file.write("#SBATCH --partition=scavenger\n")
             file.write("#SBATCH --mem=2G\n")
             file.write("#SBATCH --time=10:00:00\n") #CHECK HOW LONG IS REALLY NEEDED
             file.write(f"#SBATCH --output={jobdir}klm-mobo_{jobnum}.out\n")
             file.write(f"#SBATCH --error={jobdir}klm-mobo_{jobnum}.err\n")
+            file.write(f"export ML_VENV_HOME=" + str(os.environ["ML_VENV_HOME"]) + "\n")
+            file.write(f"export AIDE_HOME=" + str(os.environ["AIDE_HOME"]) + "\n")
             
             file.write("python " + str(os.environ["AIDE_HOME"])+"/ProjectUtils/ePICUtils/"+"newRunTestsAndObjectiveCalc.py {} \n".format(jobnum))
 

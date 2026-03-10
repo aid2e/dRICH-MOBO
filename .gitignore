@@ -11,3 +11,13 @@ MOBO-tools/log/sim_files/*
 MOBO-tools/log/job_output/*
 MOBO-tools/OUTDIR/*
 MOBO-tools/run_opt_slurm/err_out/
+lib/
+bin/
+compiler_compat/
+conda-meta/
+etc/
+include/
+man/
+sbin/
+share/
+ssl/
