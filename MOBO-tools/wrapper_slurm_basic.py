@@ -171,11 +171,19 @@ if __name__ == "__main__":
         )
     '''USER EDIT'''
     # Create threshold for each objective
+    #March 6 thresholds
+#     objective_thresholds = [
+#         ObjectiveThreshold(metric=metrics[0], bound=0.65, relative=False), # low RMSE
+#         ObjectiveThreshold(metric=metrics[1], bound=0.95, relative=False),# high RMSE
+#         ObjectiveThreshold(metric=metrics[2], bound=0.92, relative=False), #low muID
+#          ObjectiveThreshold(metric=metrics[3], bound=0.92, relative=False) # high muID
+#         ]
+# March 12 thresholds
     objective_thresholds = [
-        ObjectiveThreshold(metric=metrics[0], bound=0.65, relative=False), # low RMSE
-        ObjectiveThreshold(metric=metrics[1], bound=0.95, relative=False),# high RMSE
-        ObjectiveThreshold(metric=metrics[2], bound=0.92, relative=False), #low muID
-         ObjectiveThreshold(metric=metrics[3], bound=0.92, relative=False) # high muID
+        ObjectiveThreshold(metric=metrics[0], bound=0.6, relative=False), # low RMSE
+        ObjectiveThreshold(metric=metrics[1], bound=0.775, relative=False),# high RMSE
+        ObjectiveThreshold(metric=metrics[2], bound=0.95, relative=False), #low muID
+         ObjectiveThreshold(metric=metrics[3], bound=0.95, relative=False) # high muID
         ]
     '''USER EDIT END'''
     optimization_config = MultiObjectiveOptimizationConfig(objective=mo,
