@@ -1,0 +1,29 @@
+============================================================
+MOBO CONVERGENCE REPORT
+============================================================
+Total completed trials : 41
+  Feasible            : 35
+  Failed              : 0
+Sobol trials          : 15  (trials 1–15)
+BoTorch trials        : 25  (trials 16–40)
+
+--- test_scheduler_df ---
+  HVI at end of Sobol  : 0.0072
+  HVI at final trial   : 0.0072
+  Total HVI gain       : 0.0018
+  Sobol gain fraction  : 98.3%
+  BoTorch gain fraction: 1.7%
+  Plateau detected at trial 19  (< 0.5% gain per 5-trial window)
+  => Trials after 19 added little; you could reduce to ~24 trials
+
+--- Per-objective best (feasible) ---
+  low_RMSE            : best = 0.4589  (trial 13)
+  high_RMSE           : best = 0.6577  (trial 9)
+  low_muID_auc        : best = 0.9843  (trial 14)
+  high_muID_auc       : best = 0.9878  (trial 14)
+
+--- Status quo vs. MOBO best ---
+  low_RMSE            : SQ=0.4970  best=0.4589  Δ=+0.0381 (+7.7%)
+  high_RMSE           : SQ=0.7340  best=0.6577  Δ=+0.0763 (+10.4%)
+  low_muID_auc        : SQ=0.9820  best=0.9843  Δ=+0.0023 (+0.2%)
+  high_muID_auc       : SQ=0.9760  best=0.9878  Δ=+0.0118 (+1.2%)
